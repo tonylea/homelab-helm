@@ -1,0 +1,18 @@
+# chart-testing config. ct compares against target-branch and only acts on charts
+# that changed.
+target-branch: main
+remote: origin
+validate-maintainers: false
+check-version-increment: true
+
+# One entry per area folder. An area missing here has its charts ignored by CI.
+chart-dirs:
+  - monitoring-observability
+  - storage
+
+# Repositories chart dependencies are pulled from.
+chart-repos:
+  - prometheus-community=https://prometheus-community.github.io/helm-charts
+  - grafana=https://grafana.github.io/helm-charts
+  - grafana-community=https://grafana-community.github.io/helm-charts
+  - containeroo=https://charts.containeroo.ch
