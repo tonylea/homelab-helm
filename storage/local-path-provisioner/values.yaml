@@ -1,0 +1,33 @@
+# local-path-provisioner: a claim for the StorageClass below gets its own folder under
+# the node's base path (nodePathMap, set per cluster), mounted as a hostPath volume.
+# Capacity in a claim is not enforced.
+
+local-path-provisioner:
+  storageClass:
+    name: observability-ssd
+    defaultClass: false
+    # Deleting a claim deletes its folder and data.
+    reclaimPolicy: Delete
+    volumeBindingMode: WaitForFirstConsumer
+
+  helperImage:
+    repository: docker.io/library/busybox
+    tag: 1.38.0
+
+  resources:
+    requests:
+      cpu: 10m
+      memory: 32Mi
+    limits:
+      cpu: 100m
+      memory: 128Mi
+
+  # Short-lived pod that creates or removes a volume's folder.
+  helperPod:
+    resources:
+      requests:
+        cpu: 10m
+        memory: 16Mi
+      limits:
+        cpu: 100m
+        memory: 64Mi

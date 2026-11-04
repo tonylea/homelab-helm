@@ -1,0 +1,29 @@
+suite: storage class
+templates:
+  - charts/local-path-provisioner/templates/storageclass.yaml
+tests:
+  - it: is named observability-ssd
+    asserts:
+      - isKind:
+          of: StorageClass
+      - equal:
+          path: metadata.name
+          value: observability-ssd
+
+  - it: is not the cluster's default class
+    asserts:
+      - equal:
+          path: metadata.annotations["storageclass.kubernetes.io/is-default-class"]
+          value: "false"
+
+  - it: deletes a volume's data when its claim is deleted
+    asserts:
+      - equal:
+          path: reclaimPolicy
+          value: Delete
+
+  - it: creates the volume on the node where the pod is scheduled
+    asserts:
+      - equal:
+          path: volumeBindingMode
+          value: WaitForFirstConsumer

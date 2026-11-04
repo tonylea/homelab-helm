@@ -1,0 +1,21 @@
+suite: provisioner deployment
+templates:
+  - charts/local-path-provisioner/templates/deployment.yaml
+tests:
+  - it: sets provisioner requests and limits
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].resources
+          value:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+            limits:
+              cpu: 100m
+              memory: 128Mi
+
+  - it: passes the pinned helper image to the provisioner
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].command
+          content: docker.io/library/busybox:1.38.0

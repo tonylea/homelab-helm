@@ -1,0 +1,23 @@
+suite: provisioner config
+templates:
+  - charts/local-path-provisioner/templates/configmap.yaml
+tests:
+  - it: puts minikube volumes on the SSD mount
+    values:
+      - ../values-minikube.yaml
+    asserts:
+      - matchRegex:
+          path: data["config.json"]
+          pattern: '"paths": \[\s*"/mnt/observability"\s*\]'
+
+  - it: pins the helper pod image
+    asserts:
+      - matchRegex:
+          path: data["helperPod.yaml"]
+          pattern: 'image: docker.io/library/busybox:1\.38\.0'
+
+  - it: sets helper pod requests and limits
+    asserts:
+      - matchRegex:
+          path: data["helperPod.yaml"]
+          pattern: 'limits:\s+cpu: 100m\s+memory: 64Mi\s+requests:\s+cpu: 10m\s+memory: 16Mi'

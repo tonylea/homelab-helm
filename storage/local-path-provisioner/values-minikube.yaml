@@ -1,0 +1,8 @@
+# minikube: /mnt/observability is the SSD folder bound in with
+# minikube start --mount-string="/Volumes/External-SSD/Services/observability:/mnt/observability"
+
+local-path-provisioner:
+  nodePathMap:
+    - node: DEFAULT_PATH_FOR_NON_LISTED_NODES
+      paths:
+        - /mnt/observability

@@ -1,0 +1,12 @@
+apiVersion: v2
+name: storage-local-path-provisioner
+description: local-path-provisioner, creating hostPath volumes on demand under a base path on each node.
+type: application
+version: 0.1.0
+kubeVersion: ">=1.30.0-0"
+dependencies:
+  # Upstream rancher/local-path-provisioner chart, republished unchanged by containeroo
+  # (rancher only publishes the chart in its git repo).
+  - name: local-path-provisioner
+    version: 0.0.38
+    repository: https://charts.containeroo.ch
