@@ -1,0 +1,10 @@
+apiVersion: v2
+name: monitoring-observability-agent
+description: Grafana Alloy collector that ships a cluster's logs, events and OTLP telemetry to the stack.
+type: application
+version: 0.1.0
+kubeVersion: ">=1.30.0-0"
+dependencies:
+  - name: alloy
+    version: 1.15.0
+    repository: https://grafana.github.io/helm-charts

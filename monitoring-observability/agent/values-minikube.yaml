@@ -1,0 +1,9 @@
+# minikube overrides. Argo Application:
+#   valueFiles: [values.yaml, values-minikube.yaml]
+
+cluster: minikube
+
+endpoints:
+  loki: http://loki.monitoring.svc:3100
+  prometheus: http://prometheus-stack-prometheus.monitoring.svc:9090
+  tempoOtlpGrpc: tempo.monitoring.svc:4317

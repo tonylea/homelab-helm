@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "cluster": {
+      "type": "string",
+      "pattern": "^([a-z0-9]([-a-z0-9]*[a-z0-9])?)?$",
+      "description": "Value of the cluster label on everything this agent sends."
+    },
+    "endpoints": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "loki": { "type": "string", "pattern": "^(https?://.+)?$" },
+        "prometheus": { "type": "string", "pattern": "^(https?://.+)?$" },
+        "tempoOtlpGrpc": { "type": "string", "pattern": "^([^/:]+:[0-9]+)?$" }
+      }
+    },
+    "collect": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "podLogs": { "type": "boolean" },
+        "events": { "type": "boolean" },
+        "otlp": { "type": "boolean" }
+      }
+    }
+  }
+}
