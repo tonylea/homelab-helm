@@ -1,0 +1,84 @@
+name: Chart end-to-end tests
+
+# Stage 3 of pull-request-checks.yaml. End-to-end tests per area
+# (<area>/tests/end-to-end-tests.sh) on a throwaway kind cluster. Only runs for areas
+# where a chart's Chart.yaml, Chart.lock or templates/ changed or the area's tests/
+# changed, or for any change when the PR has the `run-end-to-end-tests` label.
+
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+  pull-requests: read
+
+env:
+  # Keep in step with chart-static-tests.yaml.
+  HELM_VERSION: v4.3.1
+
+jobs:
+  find-areas-to-test:
+    name: Find areas that need end-to-end tests
+    runs-on: ubuntu-latest
+    outputs:
+      areas: ${{ steps.areas.outputs.areas }}
+    steps:
+      - uses: actions/checkout@v6
+
+      # Third-party action: pinned to a commit so the code can't change under the tag.
+      - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
+        id: filter
+        with:
+          list-files: json
+          filters: |
+            end_to_end:
+              - '*/*/Chart.yaml'
+              - '*/*/Chart.lock'
+              - '*/*/templates/**'
+              - '*/tests/**'
+            any:
+              - '*/**'
+
+      # Areas with matching changes (any change when labelled `run-end-to-end-tests`)
+      # that have an end-to-end test.
+      - id: areas
+        env:
+          FILES: ${{ contains(github.event.pull_request.labels.*.name, 'run-end-to-end-tests') && steps.filter.outputs.any_files || steps.filter.outputs.end_to_end_files }}
+        # File names stay data: parsed by jq, never evaluated as shell.
+        run: |
+          areas="$(jq -r '.[] | split("/")[0]' <<<"$FILES" | sort -u \
+            | while IFS= read -r area; do [[ -x "$area/tests/end-to-end-tests.sh" ]] && echo "$area"; done \
+            | jq -R . | jq -sc .)"
+          echo "areas=$areas" >> "$GITHUB_OUTPUT"
+          echo "End-to-end areas: $areas"
+
+  end-to-end-tests:
+    needs: find-areas-to-test
+    if: needs.find-areas-to-test.outputs.areas != '[]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        area: ${{ fromJSON(needs.find-areas-to-test.outputs.areas) }}
+    name: End-to-end tests (${{ matrix.area }})
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: azure/setup-helm@v4
+        with:
+          version: ${{ env.HELM_VERSION }}
+
+      - uses: helm/kind-action@v1.15.2
+        with:
+          cluster_name: end-to-end-tests
+
+      - name: Build dependencies
+        run: |
+          yq -r '.["chart-repos"][]' ct.yaml | while IFS='=' read -r name url; do helm repo add "$name" "$url"; done
+          for chart in "${{ matrix.area }}"/*/Chart.yaml; do
+            helm dependency build "$(dirname "$chart")"
+          done
+
+      - name: Run end-to-end tests
+        run: ${{ matrix.area }}/tests/end-to-end-tests.sh
