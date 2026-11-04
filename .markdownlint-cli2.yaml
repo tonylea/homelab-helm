@@ -1,0 +1,9 @@
+# markdownlint-cli2 config, used by the lint workflow and local runs.
+globs:
+  - "**/*.md"
+ignores:
+  - "**/charts/**"
+config:
+  default: true
+  MD013: false
+  MD024: false
