@@ -1,0 +1,93 @@
+name: Chart static tests
+
+# Stage 2 of pull-request-checks.yaml. For every chart that changed (as reported by
+# chart-testing): unit tests, values schema, render + kubeconform, and any
+# <chart>/tests/*.sh checks.
+
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+env:
+  # Helm 4. Charts stay on apiVersion v2: chart v3 is still experimental in Helm 4.3.
+  HELM_VERSION: v4.3.1
+  HELM_UNITTEST_VERSION: v1.2.1
+  KUBECONFORM_VERSION: v0.8.0
+  # Kubernetes version manifests are validated against (minikube's version).
+  KUBE_VERSION: 1.37.0
+
+jobs:
+  chart-static-tests:
+    name: Chart static tests (unit tests, manifest validation)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - uses: azure/setup-helm@v4
+        with:
+          version: ${{ env.HELM_VERSION }}
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+
+      - uses: helm/chart-testing-action@v2.9.0
+
+      - name: List changed charts
+        id: changed
+        run: |
+          charts="$(ct list-changed --config ct.yaml | tr '\n' ' ')"
+          echo "charts=$charts" >> "$GITHUB_OUTPUT"
+          echo "Changed charts: ${charts:-none}"
+
+      - name: Install helm-unittest and kubeconform
+        if: steps.changed.outputs.charts != ''
+        run: |
+          # Helm 4 verifies plugin signatures by default; a git install has none to check.
+          helm plugin install https://github.com/helm-unittest/helm-unittest --version "$HELM_UNITTEST_VERSION" --verify=false
+          curl -fsSL "https://github.com/yannh/kubeconform/releases/download/${KUBECONFORM_VERSION}/kubeconform-linux-amd64.tar.gz" \
+            | sudo tar -xz -C /usr/local/bin kubeconform
+
+      - name: Build dependencies
+        if: steps.changed.outputs.charts != ''
+        run: |
+          yq -r '.["chart-repos"][]' ct.yaml | while IFS='=' read -r name url; do helm repo add "$name" "$url"; done
+          for chart in ${{ steps.changed.outputs.charts }}; do
+            helm dependency build "$chart"
+          done
+
+      - name: Unit tests
+        if: steps.changed.outputs.charts != ''
+        run: |
+          for chart in ${{ steps.changed.outputs.charts }}; do
+            helm unittest "$chart"
+          done
+
+      - name: Render and validate manifests
+        if: steps.changed.outputs.charts != ''
+        run: |
+          for chart in ${{ steps.changed.outputs.charts }}; do
+            for values in "$chart"/values-*.yaml "$chart"/ci/*-values.yaml; do
+              [[ -e "$values" ]] || continue
+              echo "::group::$values"
+              helm template ci "$chart" -n ci -f "$values" --include-crds --kube-version "$KUBE_VERSION" \
+                | kubeconform -strict -summary -kubernetes-version "$KUBE_VERSION" \
+                    -schema-location default \
+                    -schema-location 'https://raw.githubusercontent.com/datreeio/CRDs-catalog/main/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json'
+              echo "::endgroup::"
+            done
+          done
+
+      - name: Chart-specific checks
+        if: steps.changed.outputs.charts != ''
+        run: |
+          shopt -s nullglob
+          for chart in ${{ steps.changed.outputs.charts }}; do
+            for check in "$chart"/tests/*.sh; do
+              echo "::group::$check"; "$check"; echo "::endgroup::"
+            done
+          done
