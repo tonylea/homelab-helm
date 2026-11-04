@@ -1,0 +1,49 @@
+name: Pull request checks
+
+# Entry point for every PR to main. Runs the stages in order, each only if the one
+# before passed:
+#   1. lint.yaml                    markdown lint, spell check, chart lint
+#   2. chart-static-tests.yaml      unit tests, manifest validation, chart checks
+#   3. chart-end-to-end-tests.yaml  end-to-end tests, only for areas that need them
+# `Pull request checks result` passes only when all three passed.
+
+on:
+  pull_request:
+    branches: [main]
+    # `labeled` lets the run-end-to-end-tests label start a new run.
+    types: [opened, synchronize, reopened, labeled]
+
+concurrency:
+  group: pull-request-checks-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  lint:
+    name: Lint
+    uses: ./.github/workflows/lint.yaml
+
+  chart-static-tests:
+    name: Chart static tests
+    needs: lint
+    uses: ./.github/workflows/chart-static-tests.yaml
+
+  chart-end-to-end-tests:
+    name: Chart end-to-end tests
+    needs: chart-static-tests
+    uses: ./.github/workflows/chart-end-to-end-tests.yaml
+
+  pull-request-checks-result:
+    name: Pull request checks result
+    needs: [lint, chart-static-tests, chart-end-to-end-tests]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: All stages passed
+        run: |
+          for result in "${{ needs.lint.result }}" "${{ needs.chart-static-tests.result }}" "${{ needs.chart-end-to-end-tests.result }}"; do
+            [[ "$result" == success ]] || { echo "a stage did not pass: $result"; exit 1; }
+          done
