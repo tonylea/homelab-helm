@@ -1,0 +1,64 @@
+name: Lint
+
+# Stage 1 of pull-request-checks.yaml. Three jobs in parallel:
+#   markdown lint   every *.md file (rules in .markdownlint-cli2.yaml)
+#   spell check     every file (cspell.config.yaml)
+#   chart lint      ct lint on changed charts: helm lint against each ci/*-values.yaml,
+#                   YAML lint, and the chart version bump check
+
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+env:
+  # Keep in step with chart-static-tests.yaml.
+  HELM_VERSION: v4.3.1
+
+jobs:
+  markdown-lint:
+    name: Markdown lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      # Third-party action: pinned to a commit so the code can't change under the tag.
+      - uses: DavidAnson/markdownlint-cli2-action@696eb3f2509270d7b882d2aa68347bc676e7af34 # v25.0.0
+        with:
+          globs: "**/*.md"
+
+  spell-check:
+    name: Spell check (cspell)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      # Third-party action: pinned to a commit so the code can't change under the tag.
+      - uses: streetsidesoftware/cspell-action@ce1816e4ce36532956ac6e983737392774b6e169 # v9.2.0
+        with:
+          files: "**"
+          incremental_files_only: false
+          check_dot_files: true
+
+  chart-lint:
+    name: Chart lint (ct lint)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - uses: azure/setup-helm@v4
+        with:
+          version: ${{ env.HELM_VERSION }}
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+
+      - uses: helm/chart-testing-action@v2.9.0
+
+      # Only lints charts that changed against main; passes when none did.
+      - name: Lint changed charts
+        run: ct lint --config ct.yaml
