@@ -1,0 +1,19 @@
+apiVersion: v2
+name: monitoring-observability-stack
+description: Central metrics, logs and traces backends (Prometheus, Loki, Tempo) with Grafana.
+type: application
+version: 0.1.0
+kubeVersion: ">=1.30.0-0"
+dependencies:
+  - name: kube-prometheus-stack
+    version: 92.18.0
+    repository: https://prometheus-community.github.io/helm-charts
+    condition: kube-prometheus-stack.enabled
+  - name: loki
+    version: 20.4.1
+    repository: https://grafana-community.github.io/helm-charts
+    condition: loki.enabled
+  - name: tempo
+    version: 3.2.1
+    repository: https://grafana-community.github.io/helm-charts
+    condition: tempo.enabled

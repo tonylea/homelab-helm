@@ -1,0 +1,167 @@
+# Central observability stack: Prometheus (metrics), Loki (logs), Tempo (traces), Grafana.
+# Every backend has its ingest endpoint switched on so other clusters and devices can
+# send data later without changing the chart.
+#
+# Service names are pinned with fullnameOverride so agents, datasources and
+# other charts can rely on them regardless of the Argo release name:
+#   prometheus-stack-prometheus:9090  (query, /api/v1/write, /api/v1/otlp)
+#   loki:3100                         (query, /loki/api/v1/push, /otlp)
+#   tempo:3200 query, tempo:4317/4318 OTLP gRPC/HTTP
+
+# Grafana admin credentials come from the Secret named in
+# kube-prometheus-stack.grafana.admin.existingSecret, with the keys `admin-user`
+# and `admin-password`. Never let Grafana generate a password: it changes on every
+# render, so Argo would show the app as permanently out of sync.
+grafanaAdmin:
+  # Create that Secret from 1Password through External Secrets Operator.
+  # Requires ESO and the referenced ClusterSecretStore to already exist.
+  externalSecret:
+    enabled: false
+    refreshInterval: 1h
+    secretStoreRef:
+      kind: ClusterSecretStore
+      name: onepassword
+    # remoteRef per Secret key. The defaults use the 1Password SDK provider's
+    # `<item>/<field>` format; for 1Password Connect use `key: <item>` plus `property: <field>`.
+    remoteRefs:
+      user:
+        key: grafana-admin/username
+      password:
+        key: grafana-admin/password
+
+# Loki and Tempo datasources, provisioned through the Grafana datasource sidecar.
+# Prometheus is provisioned by kube-prometheus-stack with uid `prometheus`.
+datasources:
+  enabled: true
+  prometheus:
+    uid: prometheus
+  loki:
+    uid: loki
+    url: http://loki:3100
+  tempo:
+    uid: tempo
+    url: http://tempo:3200
+
+kube-prometheus-stack:
+  enabled: true
+  fullnameOverride: prometheus-stack
+
+  prometheus:
+    prometheusSpec:
+      # Ingest endpoints for external sources.
+      enableRemoteWriteReceiver: true
+      enableOTLPReceiver: true
+      # Pick up ServiceMonitors, PodMonitors, rules, probes and ScrapeConfigs from
+      # any release, not just this one.
+      serviceMonitorSelectorNilUsesHelmValues: false
+      podMonitorSelectorNilUsesHelmValues: false
+      ruleSelectorNilUsesHelmValues: false
+      probeSelectorNilUsesHelmValues: false
+      scrapeConfigSelectorNilUsesHelmValues: false
+      retention: 15d
+      retentionSize: 18GB
+      storageSpec:
+        volumeClaimTemplate:
+          spec:
+            accessModes: [ReadWriteOnce]
+            resources:
+              requests:
+                storage: 20Gi
+
+  grafana:
+    fullnameOverride: grafana
+    admin:
+      existingSecret: grafana-admin
+      userKey: admin-user
+      passwordKey: admin-password
+    persistence:
+      enabled: true
+      size: 5Gi
+    # A ReadWriteOnce volume can't be attached to old and new pods at once.
+    deploymentStrategy:
+      type: Recreate
+    testFramework:
+      enabled: false
+    sidecar:
+      datasources:
+        enabled: true
+      dashboards:
+        enabled: true
+
+loki:
+  enabled: true
+  fullnameOverride: loki
+  deploymentMode: Monolithic
+  loki:
+    auth_enabled: false
+    commonConfig:
+      replication_factor: 1
+    storage:
+      type: filesystem
+    schemaConfig:
+      configs:
+        - from: "2024-04-01"
+          store: tsdb
+          object_store: filesystem
+          schema: v13
+          index:
+            prefix: index_
+            period: 24h
+    limits_config:
+      retention_period: 744h
+      allow_structured_metadata: true
+    compactor:
+      retention_enabled: true
+      delete_request_store: filesystem
+  singleBinary:
+    replicas: 1
+    persistence:
+      enabled: true
+      size: 20Gi
+  # The chart's simple-scalable targets default to non-zero replicas.
+  read:
+    replicas: 0
+  write:
+    replicas: 0
+  backend:
+    replicas: 0
+  # Single-node homelab: no gateway, caches, canary or chart self-test.
+  gateway:
+    enabled: false
+  chunksCache:
+    enabled: false
+  resultsCache:
+    enabled: false
+  lokiCanary:
+    enabled: false
+  test:
+    enabled: false
+
+tempo:
+  enabled: true
+  fullnameOverride: tempo
+  tempo:
+    reportingEnabled: false
+    retention: 168h
+    receivers:
+      otlp:
+        protocols:
+          grpc:
+            endpoint: 0.0.0.0:4317
+          http:
+            endpoint: 0.0.0.0:4318
+    # Service graph and span metrics, written into Prometheus.
+    metricsGenerator:
+      enabled: true
+      remoteWriteUrl: http://prometheus-stack-prometheus:9090/api/v1/write
+    overrides:
+      defaults:
+        metrics_generator:
+          processors:
+            - service-graphs
+            - span-metrics
+  persistence:
+    enabled: true
+    size: 10Gi
+  serviceMonitor:
+    enabled: true

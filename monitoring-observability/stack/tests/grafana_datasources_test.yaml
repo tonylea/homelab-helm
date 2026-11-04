@@ -1,0 +1,51 @@
+suite: grafana datasources
+templates:
+  - templates/grafana-datasources.yaml
+tests:
+  - it: is labelled for the Grafana datasource sidecar
+    asserts:
+      - isKind:
+          of: ConfigMap
+      - equal:
+          path: metadata.labels.grafana_datasource
+          value: "1"
+
+  - it: provisions Loki and Tempo with linked uids
+    asserts:
+      - matchRegex:
+          path: data["datasources.yaml"]
+          pattern: "uid: loki\\n\\s+url: http://loki:3100"
+      - matchRegex:
+          path: data["datasources.yaml"]
+          pattern: "uid: tempo\\n\\s+url: http://tempo:3200"
+      - matchRegex:
+          path: data["datasources.yaml"]
+          pattern: "tracesToLogsV2:\\n\\s+datasourceUid: loki"
+      - matchRegex:
+          path: data["datasources.yaml"]
+          pattern: "serviceMap:\\n\\s+datasourceUid: prometheus"
+
+  - it: escapes the derived field variable so Grafana doesn't treat it as an env var
+    asserts:
+      - matchRegex:
+          path: data["datasources.yaml"]
+          pattern: 'url: "\$\$\{__value.raw\}"'
+
+  - it: follows overridden URLs and uids
+    set:
+      datasources.loki.url: http://loki.other:3100
+      datasources.loki.uid: logs
+    asserts:
+      - matchRegex:
+          path: data["datasources.yaml"]
+          pattern: "uid: logs\\n\\s+url: http://loki.other:3100"
+      - matchRegex:
+          path: data["datasources.yaml"]
+          pattern: "tracesToLogsV2:\\n\\s+datasourceUid: logs"
+
+  - it: renders nothing when disabled
+    set:
+      datasources.enabled: false
+    asserts:
+      - hasDocuments:
+          count: 0

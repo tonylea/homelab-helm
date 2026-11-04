@@ -1,0 +1,65 @@
+{
+  "$schema": "https://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "grafanaAdmin": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "externalSecret": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "enabled": { "type": "boolean" },
+            "refreshInterval": { "type": "string", "pattern": "^[0-9]+(s|m|h)$" },
+            "secretStoreRef": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["kind", "name"],
+              "properties": {
+                "kind": { "enum": ["ClusterSecretStore", "SecretStore"] },
+                "name": { "type": "string", "minLength": 1 }
+              }
+            },
+            "remoteRefs": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "user": { "$ref": "#/definitions/remoteRef" },
+                "password": { "$ref": "#/definitions/remoteRef" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "datasources": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "prometheus": { "$ref": "#/definitions/datasource" },
+        "loki": { "$ref": "#/definitions/datasource" },
+        "tempo": { "$ref": "#/definitions/datasource" }
+      }
+    }
+  },
+  "definitions": {
+    "datasource": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "uid": { "type": "string", "minLength": 1 },
+        "url": { "type": "string", "pattern": "^https?://.+" }
+      }
+    },
+    "remoteRef": {
+      "type": "object",
+      "required": ["key"],
+      "properties": {
+        "key": { "type": "string", "minLength": 1 },
+        "property": { "type": "string" }
+      }
+    }
+  }
+}

@@ -1,0 +1,18 @@
+# minikube overrides. Argo Application:
+#   valueFiles: [values.yaml, values-minikube.yaml]
+
+grafanaAdmin:
+  externalSecret:
+    enabled: true
+
+kube-prometheus-stack:
+  # minikube binds these control-plane components to 127.0.0.1, so scraping them
+  # only produces "target down" alerts.
+  kubeEtcd:
+    enabled: false
+  kubeScheduler:
+    enabled: false
+  kubeControllerManager:
+    enabled: false
+  kubeProxy:
+    enabled: false

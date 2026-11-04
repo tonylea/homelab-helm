@@ -1,0 +1,45 @@
+{{- if .Values.datasources.enabled }}
+{{- $ds := .Values.datasources }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-datasources
+  labels:
+    {{- include "stack.labels" . | nindent 4 }}
+    grafana_datasource: "1"
+data:
+  datasources.yaml: |
+    apiVersion: 1
+    datasources:
+      - name: Loki
+        type: loki
+        uid: {{ $ds.loki.uid }}
+        url: {{ $ds.loki.url }}
+        access: proxy
+        jsonData:
+          derivedFields:
+            - name: TraceID
+              matcherType: label
+              matcherRegex: trace_id
+              datasourceUid: {{ $ds.tempo.uid }}
+              url: "$${__value.raw}"
+      - name: Tempo
+        type: tempo
+        uid: {{ $ds.tempo.uid }}
+        url: {{ $ds.tempo.url }}
+        access: proxy
+        jsonData:
+          tracesToLogsV2:
+            datasourceUid: {{ $ds.loki.uid }}
+            spanStartTimeShift: -5m
+            spanEndTimeShift: 5m
+            filterByTraceID: true
+          tracesToMetrics:
+            datasourceUid: {{ $ds.prometheus.uid }}
+          serviceMap:
+            datasourceUid: {{ $ds.prometheus.uid }}
+          nodeGraph:
+            enabled: true
+          lokiSearch:
+            datasourceUid: {{ $ds.loki.uid }}
+{{- end }}
