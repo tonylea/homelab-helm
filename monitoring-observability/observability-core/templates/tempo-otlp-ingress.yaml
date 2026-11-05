@@ -1,0 +1,28 @@
+{{- with .Values.tempoOtlpIngress }}
+{{- if .enabled }}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: tempo-otlp
+  labels:
+    {{- include "observability-core.labels" $ | nindent 4 }}
+  {{- with .annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  ingressClassName: {{ .className }}
+  rules:
+    - host: {{ required "tempoOtlpIngress.host is required" .host }}
+      http:
+        paths:
+          # OTLP over HTTP: traces only. Tempo doesn't accept OTLP metrics or logs.
+          - path: /v1/traces
+            pathType: Exact
+            backend:
+              service:
+                name: tempo
+                port:
+                  number: 4318
+{{- end }}
+{{- end }}

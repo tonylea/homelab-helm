@@ -42,6 +42,14 @@ datasources:
     uid: tempo
     url: http://tempo:3200
 
+# Ingress for Tempo's OTLP over HTTP receiver, for agents on other clusters. The Tempo
+# chart's own ingress only covers its query UI.
+tempoOtlpIngress:
+  enabled: false
+  className: nginx
+  host: ""
+  annotations: {}
+
 kube-prometheus-stack:
   enabled: true
   fullnameOverride: prometheus-stack

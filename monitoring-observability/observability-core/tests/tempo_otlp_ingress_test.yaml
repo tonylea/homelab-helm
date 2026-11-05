@@ -1,0 +1,50 @@
+suite: Tempo OTLP ingress
+templates:
+  - templates/tempo-otlp-ingress.yaml
+tests:
+  - it: is off by default
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: routes OTLP traces on the host to Tempo's OTLP HTTP port
+    set:
+      tempoOtlpIngress.enabled: true
+      tempoOtlpIngress.host: tempo.example
+    asserts:
+      - isKind:
+          of: Ingress
+      - equal:
+          path: spec.ingressClassName
+          value: nginx
+      - equal:
+          path: spec.rules[0].host
+          value: tempo.example
+      - equal:
+          path: spec.rules[0].http.paths
+          value:
+            - path: /v1/traces
+              pathType: Exact
+              backend:
+                service:
+                  name: tempo
+                  port:
+                    number: 4318
+
+  - it: passes annotations through
+    set:
+      tempoOtlpIngress.enabled: true
+      tempoOtlpIngress.host: tempo.example
+      tempoOtlpIngress.annotations:
+        nginx.ingress.kubernetes.io/proxy-body-size: 16m
+    asserts:
+      - equal:
+          path: metadata.annotations["nginx.ingress.kubernetes.io/proxy-body-size"]
+          value: 16m
+
+  - it: fails without a host
+    set:
+      tempoOtlpIngress.enabled: true
+    asserts:
+      - failedTemplate:
+          errorPattern: tempoOtlpIngress.host is required

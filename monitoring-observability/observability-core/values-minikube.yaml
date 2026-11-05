@@ -5,8 +5,16 @@ grafanaAdmin:
   externalSecret:
     enabled: true
 
-# Web UIs go through minikube's ingress-nginx addon on ports 80/443. Each host
-# needs a DNS record pointing at the Mac running minikube.
+# Web UIs and the ingest endpoints for other clusters go through minikube's ingress-nginx
+# addon on ports 80/443. Each host needs a DNS record pointing at the Mac running
+# minikube. Ingest hosts raise ingress-nginx's 1m default request size (our own choice
+# of 16m) so agents' batches aren't rejected.
+tempoOtlpIngress:
+  enabled: true
+  host: tempo.internal.deadrobot.co.uk
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-body-size: 16m
+
 kube-prometheus-stack:
   prometheus:
     prometheusSpec:
@@ -25,9 +33,12 @@ kube-prometheus-stack:
             - action: replace
               targetLabel: cluster
               replacement: minikube
+    # UI, and remote write (/api/v1/write) for other clusters' agents.
     ingress:
       enabled: true
       ingressClassName: nginx
+      annotations:
+        nginx.ingress.kubernetes.io/proxy-body-size: 16m
       hosts: [prometheus.internal.deadrobot.co.uk]
       paths: [/]
       pathType: Prefix
@@ -56,6 +67,21 @@ loki:
   singleBinary:
     persistence:
       storageClass: observability-ssd
+  # Push endpoints only, for other clusters' agents. Querying stays inside the cluster,
+  # through Grafana.
+  ingress:
+    enabled: true
+    ingressClassName: nginx
+    annotations:
+      nginx.ingress.kubernetes.io/proxy-body-size: 16m
+    hosts: [loki.internal.deadrobot.co.uk]
+    paths:
+      distributor:
+        - /loki/api/v1/push
+        - /otlp/v1/logs
+      queryFrontend: []
+      ruler: []
+      compactor: []
 
 tempo:
   persistence:
