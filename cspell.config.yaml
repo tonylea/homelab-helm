@@ -9,6 +9,8 @@ ignorePaths:
   - ".git/**"
 words:
   - apiserver
+  - argocd
+  - argoproj
   - cadvisor
   - clustersecretstore
   - containeroo

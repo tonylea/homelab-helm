@@ -1,0 +1,6 @@
+apiVersion: v2
+name: gitops-argocd-clusters
+description: Registers external clusters with Argo CD, building each cluster Secret from 1Password through External Secrets Operator.
+type: application
+version: 0.1.0
+kubeVersion: ">=1.30.0-0"

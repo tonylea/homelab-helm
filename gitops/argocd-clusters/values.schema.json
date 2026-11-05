@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "clusters": {
+      "type": "object",
+      "propertyNames": {
+        "pattern": "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$"
+      },
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "server",
+          "onepasswordItem"
+        ],
+        "properties": {
+          "server": {
+            "type": "string",
+            "pattern": "^https://.+"
+          },
+          "onepasswordItem": {
+            "type": "string",
+            "minLength": 1
+          },
+          "labels": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "refreshInterval": {
+      "type": "string"
+    },
+    "secretStoreRef": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "enum": [
+            "ClusterSecretStore",
+            "SecretStore"
+          ]
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    }
+  }
+}

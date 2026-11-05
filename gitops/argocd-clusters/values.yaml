@@ -1,0 +1,21 @@
+# External clusters Argo CD can deploy to. Install into Argo CD's namespace: Argo CD only
+# reads cluster Secrets from there.
+#
+# Each entry becomes an ExternalSecret that builds an Argo CD cluster Secret. The
+# ServiceAccount token and CA come from one 1Password API Credentials item per cluster:
+# the token in its `credential` field and the base64-encoded CA certificate in a custom
+# field named `ca`. See bootstrap/argocd-manager.yaml for creating them.
+#
+# clusters:
+#   <name shown in Argo CD>:
+#     server: https://<api-server>:6443
+#     onepasswordItem: <1Password item name>
+#     # Optional labels on Argo CD's cluster Secret, for selecting clusters (for
+#     # example in an ApplicationSet's cluster generator).
+#     labels: {}
+clusters: {}
+
+refreshInterval: 1h
+secretStoreRef:
+  kind: ClusterSecretStore
+  name: onepassword

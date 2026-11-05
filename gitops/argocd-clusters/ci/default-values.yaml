@@ -1,0 +1,5 @@
+# Values for CI: one example cluster so every template renders.
+clusters:
+  example:
+    server: https://example.internal:6443
+    onepasswordItem: argocd-cluster-example

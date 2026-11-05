@@ -1,0 +1,7 @@
+# minikube overrides: Argo CD runs here. Argo Application:
+#   valueFiles: [values.yaml, values-minikube.yaml]
+
+clusters:
+  k3s:
+    server: https://k3s-node-02.internal.deadrobot.co.uk:6443
+    onepasswordItem: argocd-cluster-k3s
