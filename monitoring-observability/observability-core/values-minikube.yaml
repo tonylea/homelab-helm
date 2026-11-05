@@ -6,7 +6,7 @@ grafanaAdmin:
     enabled: true
 
 # Web UIs go through minikube's ingress-nginx addon on ports 80/443. Each host
-# needs an /etc/hosts entry pointing at 127.0.0.1.
+# needs a DNS record pointing at the Mac running minikube.
 kube-prometheus-stack:
   prometheus:
     prometheusSpec:
@@ -28,14 +28,14 @@ kube-prometheus-stack:
     ingress:
       enabled: true
       ingressClassName: nginx
-      hosts: [prometheus.local]
+      hosts: [prometheus.internal.deadrobot.co.uk]
       paths: [/]
       pathType: Prefix
   alertmanager:
     ingress:
       enabled: true
       ingressClassName: nginx
-      hosts: [alertmanager.local]
+      hosts: [alertmanager.internal.deadrobot.co.uk]
       paths: [/]
       pathType: Prefix
   grafana:
@@ -49,7 +49,7 @@ kube-prometheus-stack:
     ingress:
       enabled: true
       ingressClassName: nginx
-      hosts: [grafana.local]
+      hosts: [grafana.internal.deadrobot.co.uk]
       path: /
 
 loki:

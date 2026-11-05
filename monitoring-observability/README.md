@@ -90,7 +90,7 @@ With `grafanaAdmin.externalSecret.enabled: true`, the chart renders an
 
 | File | Overrides |
 | --- | --- |
-| `values-minikube.yaml` | Turns on the 1Password ExternalSecret. Puts all four volumes on the `observability-ssd` storage class. Adds `nginx` ingresses for `grafana.local`, `prometheus.local` and `alertmanager.local`. Labels what Prometheus scrapes itself with `cluster: minikube`, matching the agent's data. Sends Grafana's own traces to the agent's OTLP receiver. |
+| `values-minikube.yaml` | Turns on the 1Password ExternalSecret. Puts all four volumes on the `observability-ssd` storage class. Adds `nginx` ingresses for `grafana`, `prometheus` and `alertmanager` under `internal.deadrobot.co.uk`. Labels what Prometheus scrapes itself with `cluster: minikube`, matching the agent's data. Sends Grafana's own traces to the agent's OTLP receiver. |
 
 ## observability-agent
 
