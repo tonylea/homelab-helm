@@ -38,6 +38,11 @@ kube-prometheus-stack:
   grafana:
     persistence:
       storageClassName: observability-ssd
+    # Grafana's own traces (HTTP requests, datasource queries), sent to
+    # observability-agent's OTLP receiver like any other app on this cluster.
+    grafana.ini:
+      tracing.opentelemetry.otlp:
+        address: alloy-receiver.observability.svc:4317
     ingress:
       enabled: true
       ingressClassName: nginx
