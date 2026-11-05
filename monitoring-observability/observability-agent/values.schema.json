@@ -59,7 +59,7 @@
       "properties": {
         "journalPath": {
           "type": "string",
-          "pattern": "^/.+"
+          "pattern": "^(/.+)?$"
         }
       }
     },

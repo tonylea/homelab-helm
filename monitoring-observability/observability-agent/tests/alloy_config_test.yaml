@@ -90,6 +90,16 @@ tests:
           path: data["config.alloy"]
           pattern: 'loki.source.journal "node"[\s\S]*path\s+= "/custom/journal"'
 
+  - it: reads both journal locations when no journal path is set
+    template: templates/alloy-logs-config.yaml
+    asserts:
+      - matchRegex:
+          path: data["config.alloy"]
+          pattern: 'loki.source.journal "node"'
+      - notMatchRegex:
+          path: data["config.alloy"]
+          pattern: 'loki.source.journal "node" \{\s*path'
+
   - it: leaves out node logs when disabled
     template: templates/alloy-logs-config.yaml
     set:
@@ -164,6 +174,8 @@ tests:
     set:
       collect.clusterMetrics: false
       collect.serviceMonitors: false
+      # OTLP carries metrics too.
+      collect.otlp: false
       endpoints.prometheus: ""
     asserts:
       - notMatchRegex:
@@ -191,8 +203,14 @@ tests:
 
   - it: fails without a cluster name
     template: templates/alloy-logs-config.yaml
+    # Only the logs collector on, so its config is the one that fails. Helm stops at
+    # the first template that errors.
     set:
       cluster: ""
+      collect.events: false
+      collect.otlp: false
+      collect.clusterMetrics: false
+      collect.serviceMonitors: false
     asserts:
       - failedTemplate:
           errorPattern: cluster is required

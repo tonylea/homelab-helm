@@ -113,7 +113,9 @@ loki.relabel "journal" {
 }
 
 loki.source.journal "node" {
-  path          = "{{ .Values.nodeLogs.journalPath }}"
+{{- with .Values.nodeLogs.journalPath }}
+  path          = "{{ . }}"
+{{- end }}
   relabel_rules = loki.relabel.journal.rules
   labels        = {
     job  = "node/journal",
