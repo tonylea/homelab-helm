@@ -1,2 +1,5 @@
 charts/
 *.tgz
+
+# Local working notes
+ROADMAP.md
