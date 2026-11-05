@@ -1,0 +1,8 @@
+# Every collector feature on (as on a cluster without observability-core), so
+# lint and config validation cover the pipelines minikube and CI turn off.
+cluster: all-collectors
+
+endpoints:
+  loki: http://loki.observability.svc:3100
+  prometheus: http://prometheus-stack-prometheus.observability.svc:9090
+  tempoOtlpGrpc: tempo.observability.svc:4317

@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
-# End-to-end tests for monitoring-observability: installs observability-core + agent with their
-# ci/ values into the current kubectl context, sends one trace, one metric and one
-# log through the agent over OTLP, and checks each lands in Tempo, Prometheus and
-# Loki. Also checks the agent ships pod logs and Grafana has its datasources.
+# End-to-end tests for monitoring-observability: installs observability-core +
+# observability-agent with their ci/ values into the current kubectl context, sends
+# one trace, one metric and one log through the agent over OTLP, and checks each
+# lands in Tempo, Prometheus and Loki. Also checks the agent ships pod logs, events
+# and cluster metrics, and Grafana has its datasources.
 #
 # Meant for a throwaway cluster (CI creates one with kind). Needs: helm, kubectl,
 # curl, jq, openssl, and chart dependencies built.
@@ -53,15 +54,15 @@ port_forward() {
   pf_pids+=($!)
 }
 
-log "Installing observability-core and agent (run ${run_id})"
+log "Installing observability-core and observability-agent (run ${run_id})"
 helm upgrade --install observability-core "$area/observability-core" -n "$ns" --create-namespace \
   -f "$area/observability-core/ci/default-values.yaml" --wait --timeout 10m
-helm upgrade --install agent "$area/agent" -n "$ns" \
-  -f "$area/agent/ci/default-values.yaml" --wait --timeout 5m
+helm upgrade --install observability-agent "$area/observability-agent" -n "$ns" \
+  -f "$area/observability-agent/ci/default-values.yaml" --wait --timeout 5m
 kubectl -n "$ns" rollout status statefulset/loki statefulset/tempo --timeout 5m
 kubectl -n "$ns" wait --for=condition=Ready pod -l app.kubernetes.io/name=prometheus --timeout 5m
 
-port_forward alloy-agent 14318 4318
+port_forward alloy-receiver 14318 4318
 port_forward prometheus-stack-prometheus 19090 9090
 port_forward loki 13100 3100
 port_forward tempo 13200 3200
@@ -106,6 +107,15 @@ eventually "OTLP metric in Prometheus with cluster label" \
 eventually "OTLP log in Loki" loki_has "{service_name=\"end-to-end-test\"} |= \"$run_id\"" || failed=1
 eventually "pod logs in Loki with cluster label" loki_has "{cluster=\"ci\",namespace=\"$ns\"}" || failed=1
 eventually "Kubernetes events in Loki" loki_has "{cluster=\"ci\",job=\"integrations/kubernetes/eventhandler\"}" || failed=1
+for check in \
+  'node_uname_info{job="node-exporter"}' \
+  'kube_pod_info{job="kube-state-metrics"}' \
+  'kubelet_running_pods{job="kubelet",metrics_path="/metrics"}' \
+  'container_cpu_usage_seconds_total{job="kubelet",metrics_path="/metrics/cadvisor"}' \
+  'apiserver_request_total{job="apiserver"}' \
+  'coredns_build_info{job="coredns"}'; do
+  eventually "cluster metric ${check%%\{*} in Prometheus" prom_has "${check%\}},cluster=\"ci\"}" || failed=1
+done
 eventually "Tempo span metrics in Prometheus" prom_has 'traces_spanmetrics_calls_total{service="end-to-end-test"}' || failed=1
 for uid in prometheus loki tempo; do
   eventually "Grafana datasource $uid" grafana_has_datasource "$uid" || failed=1

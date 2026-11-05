@@ -7,3 +7,23 @@ endpoints:
   loki: http://loki.observability.svc:3100
   prometheus: http://prometheus-stack-prometheus.observability.svc:9090
   tempoOtlpGrpc: tempo.observability.svc:4317
+
+collect:
+  # Not needed on minikube.
+  nodeLogs: false
+  # observability-core's Prometheus runs here and already scrapes ServiceMonitors and
+  # PodMonitors, including the ones below.
+  serviceMonitors: false
+
+alloy-logs:
+  serviceMonitor:
+    enabled: true
+alloy-receiver:
+  serviceMonitor:
+    enabled: true
+alloy-events:
+  serviceMonitor:
+    enabled: true
+alloy-metrics:
+  serviceMonitor:
+    enabled: true

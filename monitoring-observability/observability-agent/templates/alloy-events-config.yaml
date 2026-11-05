@@ -1,0 +1,13 @@
+{{- define "observability-agent.eventsConfig" -}}
+{{- if .Values.collect.events }}
+
+{{ include "observability-agent.lokiWrite" . }}
+
+loki.source.kubernetes_events "events" {
+  job_name   = "integrations/kubernetes/eventhandler"
+  log_format = "logfmt"
+  forward_to = [loki.write.default.receiver]
+}
+{{- end }}
+{{- end }}
+{{- include "observability-agent.configMap" (dict "ctx" . "collector" "alloy-events" "body" (include "observability-agent.eventsConfig" .)) }}

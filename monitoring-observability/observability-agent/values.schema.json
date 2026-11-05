@@ -21,9 +21,23 @@
       "additionalProperties": false,
       "properties": {
         "podLogs": { "type": "boolean" },
+        "nodeLogs": { "type": "boolean" },
         "events": { "type": "boolean" },
-        "otlp": { "type": "boolean" }
+        "otlp": { "type": "boolean" },
+        "clusterMetrics": { "type": "boolean" },
+        "serviceMonitors": { "type": "boolean" }
       }
+    },
+    "nodeLogs": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "journalPath": { "type": "string", "pattern": "^/.+" }
+      }
+    },
+    "scrapeInterval": {
+      "type": "string",
+      "pattern": "^[0-9]+(ms|s|m|h)$"
     }
   }
 }

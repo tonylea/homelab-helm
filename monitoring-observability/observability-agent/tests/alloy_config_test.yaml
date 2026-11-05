@@ -1,0 +1,190 @@
+suite: alloy collector configs
+templates:
+  - templates/alloy-logs-config.yaml
+  - templates/alloy-receiver-config.yaml
+  - templates/alloy-events-config.yaml
+  - templates/alloy-metrics-config.yaml
+values:
+  - ../ci/all-collectors-values.yaml
+tests:
+  - it: uses the ConfigMap name and key each Alloy subchart mounts
+    template: templates/alloy-logs-config.yaml
+    set:
+      alloy-logs.alloy.configMap.name: custom-name
+      alloy-logs.alloy.configMap.key: custom.alloy
+    asserts:
+      - equal:
+          path: metadata.name
+          value: custom-name
+      - exists:
+          path: data["custom.alloy"]
+
+  - it: labels logs with the cluster name
+    template: templates/alloy-logs-config.yaml
+    asserts:
+      - matchRegex:
+          path: data["config.alloy"]
+          pattern: 'loki.write "default"[\s\S]*cluster = "all-collectors"'
+
+  - it: labels metrics with the cluster name
+    template: templates/alloy-metrics-config.yaml
+    asserts:
+      - matchRegex:
+          path: data["config.alloy"]
+          pattern: 'prometheus.remote_write "default"[\s\S]*cluster = "all-collectors"'
+
+  - it: sets the cluster name on OTLP data
+    template: templates/alloy-receiver-config.yaml
+    asserts:
+      - matchRegex:
+          path: data["config.alloy"]
+          pattern: 'set\(attributes\["k8s.cluster.name"\], "all-collectors"\)'
+
+  - it: appends API paths to the endpoint base URLs
+    template: templates/alloy-receiver-config.yaml
+    set:
+      endpoints.loki: http://loki:3100/
+    asserts:
+      - matchRegex:
+          path: data["config.alloy"]
+          pattern: 'endpoint = "http://loki:3100/otlp"'
+      - matchRegex:
+          path: data["config.alloy"]
+          pattern: 'url = "http://prometheus-stack-prometheus.observability.svc:9090/api/v1/write"'
+      - matchRegex:
+          path: data["config.alloy"]
+          pattern: 'endpoint = "tempo.observability.svc:4317"'
+
+  - it: reads pod logs only from its own node
+    template: templates/alloy-logs-config.yaml
+    asserts:
+      - matchRegex:
+          path: data["config.alloy"]
+          pattern: 'field = "spec.nodeName=" \+ sys.env\("HOSTNAME"\)'
+      - matchRegex:
+          path: data["config.alloy"]
+          pattern: 'replacement   = "/var/log/pods/\*\$1/\*.log"'
+
+  - it: reads node logs from the configured journal path
+    template: templates/alloy-logs-config.yaml
+    set:
+      nodeLogs.journalPath: /custom/journal
+    asserts:
+      - matchRegex:
+          path: data["config.alloy"]
+          pattern: 'loki.source.journal "node"[\s\S]*path\s+= "/custom/journal"'
+
+  - it: leaves out node logs when disabled
+    template: templates/alloy-logs-config.yaml
+    set:
+      collect.nodeLogs: false
+    asserts:
+      - notMatchRegex:
+          path: data["config.alloy"]
+          pattern: loki.source.journal
+      - matchRegex:
+          path: data["config.alloy"]
+          pattern: loki.source.file "pod_logs"
+
+  - it: leaves out Loki push when pod and node logs are disabled
+    template: templates/alloy-logs-config.yaml
+    set:
+      collect.podLogs: false
+      collect.nodeLogs: false
+    asserts:
+      - notMatchRegex:
+          path: data["config.alloy"]
+          pattern: loki.write
+
+  - it: uses the job labels kube-prometheus-stack expects
+    template: templates/alloy-metrics-config.yaml
+    asserts:
+      - matchRegex:
+          path: data["config.alloy"]
+          pattern: 'prometheus.scrape "kubelet"[\s\S]*job_name\s+= "kubelet"'
+      - matchRegex:
+          path: data["config.alloy"]
+          pattern: 'prometheus.scrape "cadvisor"[\s\S]*job_name\s+= "kubelet"'
+      - matchRegex:
+          path: data["config.alloy"]
+          pattern: 'job_name\s+= "apiserver"'
+      - matchRegex:
+          path: data["config.alloy"]
+          pattern: 'job_name\s+= "coredns"'
+      - matchRegex:
+          path: data["config.alloy"]
+          pattern: 'job_name\s+= "node-exporter"'
+      - matchRegex:
+          path: data["config.alloy"]
+          pattern: 'job_name\s+= "kube-state-metrics"'
+
+  - it: scrapes this release's exporters
+    template: templates/alloy-metrics-config.yaml
+    release:
+      name: my-agent
+      namespace: my-namespace
+    asserts:
+      - matchRegex:
+          path: data["config.alloy"]
+          pattern: 'app.kubernetes.io/name=prometheus-node-exporter,app.kubernetes.io/instance=my-agent'
+      - matchRegex:
+          path: data["config.alloy"]
+          pattern: 'names = \["my-namespace"\]'
+
+  - it: leaves out ServiceMonitors and PodMonitors when disabled
+    template: templates/alloy-metrics-config.yaml
+    set:
+      collect.serviceMonitors: false
+    asserts:
+      - notMatchRegex:
+          path: data["config.alloy"]
+          pattern: prometheus.operator
+      - matchRegex:
+          path: data["config.alloy"]
+          pattern: prometheus.scrape "kubelet"
+
+  - it: leaves out remote write when no metrics are collected
+    template: templates/alloy-metrics-config.yaml
+    set:
+      collect.clusterMetrics: false
+      collect.serviceMonitors: false
+      endpoints.prometheus: ""
+    asserts:
+      - notMatchRegex:
+          path: data["config.alloy"]
+          pattern: prometheus.remote_write
+
+  - it: leaves out OTLP when disabled
+    template: templates/alloy-receiver-config.yaml
+    set:
+      collect.otlp: false
+      endpoints.tempoOtlpGrpc: ""
+    asserts:
+      - notMatchRegex:
+          path: data["config.alloy"]
+          pattern: otelcol
+
+  - it: leaves out events when disabled
+    template: templates/alloy-events-config.yaml
+    set:
+      collect.events: false
+    asserts:
+      - notMatchRegex:
+          path: data["config.alloy"]
+          pattern: loki.source.kubernetes_events
+
+  - it: fails without a cluster name
+    template: templates/alloy-logs-config.yaml
+    set:
+      cluster: ""
+    asserts:
+      - failedTemplate:
+          errorPattern: cluster is required
+
+  - it: fails when an enabled pipeline has no endpoint
+    template: templates/alloy-receiver-config.yaml
+    set:
+      endpoints.tempoOtlpGrpc: ""
+    asserts:
+      - failedTemplate:
+          errorPattern: endpoints.tempoOtlpGrpc is required

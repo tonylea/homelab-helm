@@ -1,0 +1,73 @@
+{{- define "observability-agent.receiverConfig" -}}
+{{- if .Values.collect.otlp }}
+{{- $cluster := include "observability-agent.cluster" . }}
+
+// OTLP from applications: traces to Tempo, metrics to Prometheus, logs to Loki.
+otelcol.receiver.otlp "default" {
+  grpc {
+    endpoint = "0.0.0.0:4317"
+  }
+  http {
+    endpoint = "0.0.0.0:4318"
+  }
+  output {
+    traces  = [otelcol.processor.transform.cluster.input]
+    metrics = [otelcol.processor.transform.cluster.input]
+    logs    = [otelcol.processor.transform.cluster.input]
+  }
+}
+
+otelcol.processor.transform "cluster" {
+  error_mode = "ignore"
+
+  trace_statements {
+    context    = "resource"
+    statements = [`set(attributes["k8s.cluster.name"], "{{ $cluster }}")`]
+  }
+  metric_statements {
+    context    = "resource"
+    statements = [`set(attributes["k8s.cluster.name"], "{{ $cluster }}")`]
+  }
+  log_statements {
+    context    = "resource"
+    statements = [`set(attributes["k8s.cluster.name"], "{{ $cluster }}")`]
+  }
+
+  output {
+    traces  = [otelcol.processor.batch.default.input]
+    metrics = [otelcol.processor.batch.default.input]
+    logs    = [otelcol.processor.batch.default.input]
+  }
+}
+
+otelcol.processor.batch "default" {
+  output {
+    traces  = [otelcol.exporter.otlp.tempo.input]
+    metrics = [otelcol.exporter.prometheus.default.input]
+    logs    = [otelcol.exporter.otlphttp.loki.input]
+  }
+}
+
+otelcol.exporter.otlp "tempo" {
+  client {
+    endpoint = "{{ include "observability-agent.endpoint" (dict "ctx" . "name" "tempoOtlpGrpc") }}"
+    tls {
+      insecure = true
+    }
+  }
+}
+
+otelcol.exporter.prometheus "default" {
+  forward_to = [prometheus.remote_write.default.receiver]
+}
+
+{{ include "observability-agent.remoteWrite" . }}
+
+otelcol.exporter.otlphttp "loki" {
+  client {
+    endpoint = "{{ include "observability-agent.endpoint" (dict "ctx" . "name" "loki") }}/otlp"
+  }
+}
+{{- end }}
+{{- end }}
+{{- include "observability-agent.configMap" (dict "ctx" . "collector" "alloy-receiver" "body" (include "observability-agent.receiverConfig" .)) }}

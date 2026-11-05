@@ -1,0 +1,240 @@
+{{- define "observability-agent.metricsConfig" -}}
+{{- $c := .Values.collect }}
+{{- if or $c.clusterMetrics $c.serviceMonitors }}
+
+{{ include "observability-agent.remoteWrite" . }}
+{{- end }}
+{{- if $c.clusterMetrics }}
+
+// kubelet and cAdvisor, scraped on each node's kubelet port.
+discovery.kubernetes "nodes" {
+  role = "node"
+}
+
+discovery.relabel "kubelet" {
+  targets = discovery.kubernetes.nodes.targets
+
+  rule {
+    source_labels = ["__meta_kubernetes_node_name"]
+    target_label  = "node"
+  }
+  rule {
+    replacement  = "/metrics"
+    target_label = "metrics_path"
+  }
+}
+
+discovery.relabel "cadvisor" {
+  targets = discovery.kubernetes.nodes.targets
+
+  rule {
+    source_labels = ["__meta_kubernetes_node_name"]
+    target_label  = "node"
+  }
+  rule {
+    replacement  = "/metrics/cadvisor"
+    target_label = "__metrics_path__"
+  }
+  rule {
+    replacement  = "/metrics/cadvisor"
+    target_label = "metrics_path"
+  }
+}
+
+prometheus.scrape "kubelet" {
+  targets           = discovery.relabel.kubelet.output
+  job_name          = "kubelet"
+  scrape_interval   = "{{ .Values.scrapeInterval }}"
+  scheme            = "https"
+  honor_labels      = true
+  bearer_token_file = "/var/run/secrets/kubernetes.io/serviceaccount/token"
+  tls_config {
+    ca_file              = "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"
+    insecure_skip_verify = true
+  }
+  clustering {
+    enabled = true
+  }
+  forward_to = [prometheus.remote_write.default.receiver]
+}
+
+prometheus.scrape "cadvisor" {
+  targets           = discovery.relabel.cadvisor.output
+  job_name          = "kubelet"
+  scrape_interval   = "{{ .Values.scrapeInterval }}"
+  scheme            = "https"
+  honor_labels      = true
+  bearer_token_file = "/var/run/secrets/kubernetes.io/serviceaccount/token"
+  tls_config {
+    ca_file              = "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"
+    insecure_skip_verify = true
+  }
+  clustering {
+    enabled = true
+  }
+  forward_to = [prometheus.remote_write.default.receiver]
+}
+
+// API server, through the default/kubernetes Service endpoints.
+discovery.kubernetes "apiserver" {
+  role = "endpoints"
+  namespaces {
+    names = ["default"]
+  }
+  selectors {
+    role  = "endpoints"
+    field = "metadata.name=kubernetes"
+  }
+}
+
+discovery.relabel "apiserver" {
+  targets = discovery.kubernetes.apiserver.targets
+
+  rule {
+    source_labels = ["__meta_kubernetes_endpoint_port_name"]
+    regex         = "https"
+    action        = "keep"
+  }
+}
+
+prometheus.scrape "apiserver" {
+  targets           = discovery.relabel.apiserver.output
+  job_name          = "apiserver"
+  scrape_interval   = "{{ .Values.scrapeInterval }}"
+  scheme            = "https"
+  bearer_token_file = "/var/run/secrets/kubernetes.io/serviceaccount/token"
+  tls_config {
+    ca_file     = "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"
+    server_name = "kubernetes"
+  }
+  clustering {
+    enabled = true
+  }
+  forward_to = [prometheus.remote_write.default.receiver]
+}
+
+// CoreDNS pods, on their metrics port.
+discovery.kubernetes "coredns" {
+  role = "pod"
+  namespaces {
+    names = ["kube-system"]
+  }
+  selectors {
+    role  = "pod"
+    label = "k8s-app=kube-dns"
+  }
+}
+
+discovery.relabel "coredns" {
+  targets = discovery.kubernetes.coredns.targets
+
+  rule {
+    source_labels = ["__meta_kubernetes_pod_container_port_number"]
+    regex         = "9153"
+    action        = "keep"
+  }
+  rule {
+    source_labels = ["__meta_kubernetes_pod_name"]
+    target_label  = "pod"
+  }
+}
+
+prometheus.scrape "coredns" {
+  targets         = discovery.relabel.coredns.output
+  job_name        = "coredns"
+  scrape_interval = "{{ .Values.scrapeInterval }}"
+  clustering {
+    enabled = true
+  }
+  forward_to = [prometheus.remote_write.default.receiver]
+}
+
+// node-exporter and kube-state-metrics from this release.
+discovery.kubernetes "node_exporter" {
+  role = "pod"
+  namespaces {
+    names = ["{{ .Release.Namespace }}"]
+  }
+  selectors {
+    role  = "pod"
+    label = "app.kubernetes.io/name=prometheus-node-exporter,app.kubernetes.io/instance={{ .Release.Name }}"
+  }
+}
+
+discovery.relabel "node_exporter" {
+  targets = discovery.kubernetes.node_exporter.targets
+
+  rule {
+    source_labels = ["__meta_kubernetes_pod_container_port_name"]
+    regex         = "metrics"
+    action        = "keep"
+  }
+  rule {
+    source_labels = ["__meta_kubernetes_pod_node_name"]
+    target_label  = "node"
+  }
+}
+
+prometheus.scrape "node_exporter" {
+  targets         = discovery.relabel.node_exporter.output
+  job_name        = "node-exporter"
+  scrape_interval = "{{ .Values.scrapeInterval }}"
+  clustering {
+    enabled = true
+  }
+  forward_to = [prometheus.remote_write.default.receiver]
+}
+
+discovery.kubernetes "kube_state_metrics" {
+  role = "pod"
+  namespaces {
+    names = ["{{ .Release.Namespace }}"]
+  }
+  selectors {
+    role  = "pod"
+    label = "app.kubernetes.io/name=kube-state-metrics,app.kubernetes.io/instance={{ .Release.Name }}"
+  }
+}
+
+discovery.relabel "kube_state_metrics" {
+  targets = discovery.kubernetes.kube_state_metrics.targets
+
+  rule {
+    source_labels = ["__meta_kubernetes_pod_container_port_name"]
+    regex         = "http"
+    action        = "keep"
+  }
+}
+
+// honor_labels keeps kube-state-metrics' own namespace/pod labels, which describe
+// the object being reported on rather than the exporter.
+prometheus.scrape "kube_state_metrics" {
+  targets         = discovery.relabel.kube_state_metrics.output
+  job_name        = "kube-state-metrics"
+  scrape_interval = "{{ .Values.scrapeInterval }}"
+  honor_labels    = true
+  clustering {
+    enabled = true
+  }
+  forward_to = [prometheus.remote_write.default.receiver]
+}
+{{- end }}
+{{- if $c.serviceMonitors }}
+
+// Targets defined by ServiceMonitors and PodMonitors in any namespace.
+prometheus.operator.servicemonitors "default" {
+  forward_to = [prometheus.remote_write.default.receiver]
+  clustering {
+    enabled = true
+  }
+}
+
+prometheus.operator.podmonitors "default" {
+  forward_to = [prometheus.remote_write.default.receiver]
+  clustering {
+    enabled = true
+  }
+}
+{{- end }}
+{{- end }}
+{{- include "observability-agent.configMap" (dict "ctx" . "collector" "alloy-metrics" "body" (include "observability-agent.metricsConfig" .)) }}

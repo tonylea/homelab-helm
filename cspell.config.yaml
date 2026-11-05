@@ -8,21 +8,33 @@ ignorePaths:
   - "**/Chart.lock"
   - ".git/**"
 words:
+  - apiserver
+  - cadvisor
   - clustersecretstore
   - containeroo
+  - coredns
+  - daemonset
   - datreeio
+  - dockercontainers
   - dorny
   - endgroup
   - eventhandler
   - externalsecret
   - homelab
   - kubeconform
+  - kubelet
   - logfmt
   - nindent
   - nullglob
   - onepassword
+  - otelcol
+  - otlphttp
+  - podmonitors
+  - servicemonitors
   - shopt
   - spanmetrics
   - statefulset
   - subchart
+  - systemd
   - urlencode
+  - varlog

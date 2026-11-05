@@ -1,0 +1,126 @@
+{{- define "observability-agent.logsConfig" -}}
+{{- $c := .Values.collect }}
+{{- if or $c.podLogs $c.nodeLogs }}
+
+{{ include "observability-agent.lokiWrite" . }}
+{{- end }}
+{{- if $c.podLogs }}
+
+// Pod logs, read from this node's /var/log/pods files.
+discovery.kubernetes "pods" {
+  role = "pod"
+  selectors {
+    role  = "pod"
+    field = "spec.nodeName=" + sys.env("HOSTNAME")
+  }
+}
+
+discovery.relabel "pod_logs" {
+  targets = discovery.kubernetes.pods.targets
+
+  rule {
+    source_labels = ["__meta_kubernetes_namespace"]
+    target_label  = "namespace"
+  }
+  rule {
+    source_labels = ["__meta_kubernetes_pod_name"]
+    target_label  = "pod"
+  }
+  rule {
+    source_labels = ["__meta_kubernetes_pod_container_name"]
+    target_label  = "container"
+  }
+  rule {
+    source_labels = ["__meta_kubernetes_pod_label_app_kubernetes_io_name"]
+    target_label  = "app"
+  }
+  rule {
+    source_labels = ["__meta_kubernetes_namespace", "__meta_kubernetes_pod_container_name"]
+    separator     = "/"
+    target_label  = "job"
+  }
+  rule {
+    source_labels = ["__meta_kubernetes_pod_node_name"]
+    target_label  = "node"
+  }
+  // docker, containerd or cri-o: picks the log line parser below.
+  rule {
+    source_labels = ["__meta_kubernetes_pod_container_id"]
+    regex         = "^(\\S+):\\/\\/.+$"
+    target_label  = "tmp_container_runtime"
+  }
+  rule {
+    source_labels = ["__meta_kubernetes_pod_uid", "__meta_kubernetes_pod_container_name"]
+    separator     = "/"
+    replacement   = "/var/log/pods/*$1/*.log"
+    target_label  = "__path__"
+  }
+  // Static pods (created by the kubelet) log under their mirror annotation.
+  rule {
+    source_labels = ["__meta_kubernetes_pod_annotation_kubernetes_io_config_mirror", "__meta_kubernetes_pod_container_name"]
+    separator     = "/"
+    regex         = "(.+/.+)"
+    replacement   = "/var/log/pods/*$1/*.log"
+    target_label  = "__path__"
+  }
+}
+
+local.file_match "pod_logs" {
+  path_targets = discovery.relabel.pod_logs.output
+}
+
+loki.source.file "pod_logs" {
+  targets       = local.file_match.pod_logs.targets
+  tail_from_end = true
+  forward_to    = [loki.process.pod_logs.receiver]
+}
+
+loki.process "pod_logs" {
+  stage.match {
+    selector = "{tmp_container_runtime=~\"containerd|cri-o|\"}"
+    stage.cri {}
+  }
+  stage.match {
+    selector = "{tmp_container_runtime=\"docker\"}"
+    stage.docker {}
+  }
+  // Pod names change on every restart: keep them out of the stream labels.
+  stage.structured_metadata {
+    values = {
+      pod = "pod",
+    }
+  }
+  stage.label_drop {
+    values = ["filename", "pod", "tmp_container_runtime"]
+  }
+  forward_to = [loki.write.default.receiver]
+}
+{{- end }}
+{{- if $c.nodeLogs }}
+
+// Node logs from the systemd journal.
+loki.relabel "journal" {
+  forward_to = []
+
+  rule {
+    source_labels = ["__journal__systemd_unit"]
+    target_label  = "unit"
+  }
+  rule {
+    source_labels = ["__journal_priority_keyword"]
+    target_label  = "level"
+  }
+}
+
+loki.source.journal "node" {
+  path          = "{{ .Values.nodeLogs.journalPath }}"
+  relabel_rules = loki.relabel.journal.rules
+  labels        = {
+    job  = "node/journal",
+    node = sys.env("HOSTNAME"),
+  }
+  forward_to = [loki.write.default.receiver]
+}
+{{- end }}
+{{- end }}
+{{- include "observability-agent.configMap" (dict "ctx" . "collector" "alloy-logs" "body" (include "observability-agent.logsConfig" .)) }}

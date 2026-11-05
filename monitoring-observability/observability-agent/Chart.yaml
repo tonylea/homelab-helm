@@ -1,10 +1,31 @@
 apiVersion: v2
-name: monitoring-observability-agent
-description: Grafana Alloy collector that ships a cluster's logs, events and OTLP telemetry to observability-core.
+name: observability-agent
+description: Per-cluster collectors (Grafana Alloy, node-exporter, kube-state-metrics) that send a cluster's metrics, logs, events and traces to observability-core.
 type: application
-version: 0.2.0
+version: 0.3.0
 kubeVersion: ">=1.30.0-0"
 dependencies:
   - name: alloy
+    alias: alloy-logs
     version: 1.15.0
     repository: https://grafana.github.io/helm-charts
+  - name: alloy
+    alias: alloy-receiver
+    version: 1.15.0
+    repository: https://grafana.github.io/helm-charts
+  - name: alloy
+    alias: alloy-events
+    version: 1.15.0
+    repository: https://grafana.github.io/helm-charts
+  - name: alloy
+    alias: alloy-metrics
+    version: 1.15.0
+    repository: https://grafana.github.io/helm-charts
+  - name: prometheus-node-exporter
+    version: 4.60.1
+    repository: https://prometheus-community.github.io/helm-charts
+    condition: collect.clusterMetrics
+  - name: kube-state-metrics
+    version: 9.0.0
+    repository: https://prometheus-community.github.io/helm-charts
+    condition: collect.clusterMetrics

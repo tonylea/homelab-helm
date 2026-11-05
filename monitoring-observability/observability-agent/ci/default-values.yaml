@@ -1,7 +1,12 @@
-# Values for CI: points at observability-core installed into the `observability` namespace.
+# Values for CI: points at observability-core installed into the `observability`
+# namespace, set up like minikube.
 cluster: ci
 
 endpoints:
   loki: http://loki.observability.svc:3100
   prometheus: http://prometheus-stack-prometheus.observability.svc:9090
   tempoOtlpGrpc: tempo.observability.svc:4317
+
+collect:
+  nodeLogs: false
+  serviceMonitors: false
