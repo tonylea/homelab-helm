@@ -20,7 +20,10 @@ kube-prometheus-stack:
         - name: cluster-label
           default: true
           relabelings:
-            - targetLabel: cluster
+            # action is the API server's default; set it so Argo's diff matches
+            # what the cluster stores.
+            - action: replace
+              targetLabel: cluster
               replacement: minikube
     ingress:
       enabled: true
