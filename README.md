@@ -5,12 +5,12 @@
 Charts are grouped into area folders. Each area has its own README with what its
 charts do and how to configure them.
 
-| Area                                                           | Charts                                                                  | What it does                                               |
-| -------------------------------------------------------------- | ----------------------------------------------------------------------- | ---------------------------------------------------------- |
-| [gitops](gitops/README.md)                                     | `argocd-clusters`                                                       | Argo CD configuration: the external clusters it deploys to |
-| [monitoring-observability](monitoring-observability/README.md) | `observability-core`, `observability-agent`, `prometheus-operator-crds` | Metrics, logs and traces: storage, querying and collection |
-| [secrets-management](secrets-management/README.md)             | `external-secrets`, `onepassword-store`                                 | Kubernetes Secrets created from 1Password                  |
-| [storage](storage/README.md)                                   | `local-path-provisioner`                                                | Volumes created on demand under a base path on the node    |
+| Area                                                           | Charts                                                                                           | What it does                                               |
+| -------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ | ---------------------------------------------------------- |
+| [gitops](gitops/README.md)                                     | `argocd-clusters`                                                                                | Argo CD configuration: the external clusters it deploys to |
+| [monitoring-observability](monitoring-observability/README.md) | `observability-core`, `observability-agent`, `observability-gateway`, `prometheus-operator-crds` | Metrics, logs and traces: storage, querying and collection |
+| [secrets-management](secrets-management/README.md)             | `external-secrets`, `onepassword-store`                                                          | Kubernetes Secrets created from 1Password                  |
+| [storage](storage/README.md)                                   | `local-path-provisioner`                                                                         | Volumes created on demand under a base path on the node    |
 
 ## Layout
 

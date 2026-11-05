@@ -11,7 +11,9 @@ words:
   - apiserver
   - argocd
   - argoproj
+  - bsd
   - cadvisor
+  - cef
   - clustersecretstore
   - containeroo
   - coredns
@@ -22,21 +24,26 @@ words:
   - endgroup
   - eventhandler
   - externalsecret
+  - homeassistant
   - homelab
+  - ietf
   - kubeconform
   - kubelet
   - logfmt
+  - metallb
   - nindent
   - nullglob
   - onepassword
   - otelcol
   - otlphttp
   - podmonitors
+  - rfc
   - servicemonitors
   - shopt
   - spanmetrics
   - statefulset
   - subchart
   - systemd
+  - traefik
   - urlencode
   - varlog

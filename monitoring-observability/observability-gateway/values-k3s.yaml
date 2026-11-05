@@ -1,0 +1,20 @@
+# k3s overrides. Argo Application (destination: the k3s cluster, namespace observability):
+#   valueFiles: [values.yaml, values-k3s.yaml]
+# Sends to observability-core on minikube through its ingress. Plain HTTP until TLS is
+# set up.
+
+endpoints:
+  loki: http://loki.internal.deadrobot.co.uk
+  prometheus: http://prometheus.internal.deadrobot.co.uk
+  tempoOtlpHttp: http://tempo.internal.deadrobot.co.uk
+
+# Through k3s's Traefik. Its web entrypoint redirects to HTTPS.
+ingress:
+  enabled: true
+  className: platform-traefik
+  host: gateway.internal.deadrobot.co.uk
+
+alloy-gateway:
+  # Scraped by the k3s agent's alloy-metrics.
+  serviceMonitor:
+    enabled: true

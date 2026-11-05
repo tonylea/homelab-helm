@@ -1,0 +1,193 @@
+{{- $alloy := (index .Values "alloy-gateway").alloy }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ $alloy.configMap.name }}
+  labels:
+    {{- include "observability-gateway.labels" . | nindent 4 }}
+data:
+  {{ $alloy.configMap.key }}: |
+    logging {
+      level  = "info"
+      format = "logfmt"
+    }
+
+    loki.write "default" {
+      endpoint {
+        url = "{{ include "observability-gateway.endpoint" (dict "ctx" . "name" "loki") }}/loki/api/v1/push"
+      }
+    }
+
+    prometheus.remote_write "default" {
+      endpoint {
+        url = "{{ include "observability-gateway.endpoint" (dict "ctx" . "name" "prometheus") }}/api/v1/write"
+      }
+    }
+
+    // Logs pushed by agents (Loki push API, /loki/api/v1/push).
+    loki.source.api "agents" {
+      http {
+        listen_address = "0.0.0.0"
+        listen_port    = 3100
+      }
+      forward_to = [loki.write.default.receiver]
+    }
+
+    // Metrics pushed by agents (Prometheus remote write, /api/v1/metrics/write).
+    prometheus.receive_http "agents" {
+      http {
+        listen_address = "0.0.0.0"
+        listen_port    = 9090
+      }
+      forward_to = [prometheus.remote_write.default.receiver]
+    }
+
+    // OTLP: traces to Tempo, metrics to Prometheus, logs to Loki.
+    otelcol.receiver.otlp "default" {
+      grpc {
+        endpoint = "0.0.0.0:4317"
+      }
+      http {
+        endpoint = "0.0.0.0:4318"
+      }
+      output {
+        traces  = [otelcol.processor.batch.default.input]
+        metrics = [otelcol.processor.batch.default.input]
+        logs    = [otelcol.processor.batch.default.input]
+      }
+    }
+
+    otelcol.processor.batch "default" {
+      output {
+        traces  = [otelcol.exporter.{{ if .Values.endpoints.tempoOtlpHttp }}otlphttp{{ else }}otlp{{ end }}.tempo.input]
+        metrics = [otelcol.exporter.prometheus.default.input]
+        logs    = [otelcol.exporter.otlphttp.loki.input]
+      }
+    }
+    {{- if .Values.endpoints.tempoOtlpHttp }}
+
+    otelcol.exporter.otlphttp "tempo" {
+      client {
+        endpoint = "{{ include "observability-gateway.endpoint" (dict "ctx" . "name" "tempoOtlpHttp") }}"
+      }
+    }
+    {{- else }}
+
+    otelcol.exporter.otlp "tempo" {
+      client {
+        endpoint = "{{ include "observability-gateway.endpoint" (dict "ctx" . "name" "tempoOtlpGrpc") }}"
+        tls {
+          insecure = true
+        }
+      }
+    }
+    {{- end }}
+
+    otelcol.exporter.prometheus "default" {
+      forward_to = [prometheus.remote_write.default.receiver]
+    }
+
+    otelcol.exporter.otlphttp "loki" {
+      client {
+        endpoint = "{{ include "observability-gateway.endpoint" (dict "ctx" . "name" "loki") }}/otlp"
+      }
+    }
+    {{- with .Values.syslog.listeners }}
+
+    // Syslog from devices.
+    loki.source.syslog "devices" {
+      {{- range . }}
+      listener {
+        address       = "0.0.0.0:{{ include "observability-gateway.syslogContainerPort" . }}"
+        protocol      = "{{ .protocol }}"
+        syslog_format = "{{ .format }}"
+        labels        = { job = "{{ .job }}" }
+      }
+      {{- end }}
+      relabel_rules = loki.relabel.syslog.rules
+      forward_to    = [loki.process.syslog.receiver]
+    }
+
+    loki.relabel "syslog" {
+      forward_to = []
+
+      // host: the hostname the device puts in the message, else the reverse-DNS name
+      // of the sender, else the sender's IP. Later rules win when they match.
+      rule {
+        source_labels = ["__syslog_connection_ip_address"]
+        target_label  = "host"
+      }
+      rule {
+        source_labels = ["__syslog_connection_hostname"]
+        regex         = "(.+)"
+        target_label  = "host"
+      }
+      rule {
+        source_labels = ["__syslog_message_hostname"]
+        regex         = "(.+)"
+        target_label  = "host"
+      }
+      // Moved to structured metadata below.
+      rule {
+        source_labels = ["__syslog_connection_ip_address"]
+        target_label  = "source_ip"
+      }
+      rule {
+        source_labels = ["__syslog_message_severity"]
+        target_label  = "level"
+      }
+      rule {
+        source_labels = ["__syslog_message_facility"]
+        target_label  = "facility"
+      }
+      rule {
+        source_labels = ["__syslog_message_app_name"]
+        target_label  = "app_name"
+      }
+    }
+
+    // Searchable per line, without becoming stream labels.
+    loki.process "syslog" {
+      stage.structured_metadata {
+        values = {
+          source_ip = "source_ip",
+          level     = "level",
+          facility  = "facility",
+          app_name  = "app_name",
+        }
+      }
+      stage.label_drop {
+        values = ["source_ip", "level", "facility", "app_name"]
+      }
+      forward_to = [loki.write.default.receiver]
+    }
+    {{- end }}
+    {{- range .Values.scrape.targets }}
+    {{- $id := include "observability-gateway.componentId" .job }}
+    {{- with .bearerTokenSecret }}
+
+    remote.kubernetes.secret "{{ $id }}" {
+      namespace = "{{ $.Release.Namespace }}"
+      name      = "{{ .name }}"
+    }
+    {{- end }}
+
+    prometheus.scrape "{{ $id }}" {
+      targets = [
+        {{- range .addresses }}
+        { __address__ = "{{ . }}" },
+        {{- end }}
+      ]
+      job_name        = "{{ .job }}"
+      metrics_path    = "{{ .metricsPath | default "/metrics" }}"
+      scheme          = "{{ .scheme | default "http" }}"
+      scrape_interval = "{{ $.Values.scrape.interval }}"
+      {{- with .bearerTokenSecret }}
+      authorization {
+        type        = "Bearer"
+        credentials = remote.kubernetes.secret.{{ $id }}.data["{{ .key }}"]
+      }
+      {{- end }}
+      forward_to = [prometheus.remote_write.default.receiver]
+    }
+    {{- end }}

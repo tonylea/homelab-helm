@@ -1,0 +1,121 @@
+# One gateway for the whole homelab, for sources that aren't Kubernetes clusters
+# (network devices, servers, Home Assistant, ...). Clusters use observability-agent.
+# A single Alloy instance:
+#   - receives pushes from agents on servers: Loki push, Prometheus remote write, OTLP
+#   - receives syslog from devices on the listeners below
+#   - scrapes the targets below
+# and sends everything to observability-core. Nothing gets a `cluster` label: `job`
+# says what kind of source it is, and `host` or `instance` which one.
+
+# Where observability-core receives data. Base URLs; the chart appends the API paths.
+endpoints:
+  # Loki base URL, e.g. http://loki.internal.deadrobot.co.uk
+  loki: ""
+  # Prometheus base URL, e.g. http://prometheus.internal.deadrobot.co.uk
+  prometheus: ""
+  # Tempo OTLP: set one. gRPC host:port, e.g. tempo.observability.svc:4317, for the same
+  # cluster; or an HTTP base URL, e.g. http://tempo.internal.deadrobot.co.uk, through an
+  # ingress (the chart appends /v1/traces). HTTP wins if both are set.
+  tempoOtlpGrpc: ""
+  tempoOtlpHttp: ""
+
+# Ingress for the HTTP inputs that agents push to:
+#   /loki/api/v1/push                Loki push
+#   /api/v1/metrics/write            Prometheus remote write
+#   /v1/traces, /v1/metrics, /v1/logs  OTLP over HTTP
+ingress:
+  enabled: false
+  className: ""
+  host: ""
+  annotations: {}
+
+syslog:
+  # LoadBalancer Service carrying the listeners' ports, created when there are
+  # listeners. externalTrafficPolicy is Local, so the gateway sees each sender's real
+  # IP (used for reverse DNS when a message has no hostname).
+  service:
+    # Fixed IP from a MetalLB pool. Empty lets MetalLB pick one.
+    loadBalancerIP: ""
+    annotations: {}
+  # One entry per port and format; a port takes one syslog format. Alloy listens on
+  # port + 10000 inside the pod, so ports below 1024 (e.g. 514) need no privileges.
+  #   name      Service port name: lowercase letters, digits and '-', up to 15 characters
+  #   port      Port devices send to
+  #   protocol  udp or tcp
+  #   format    rfc5424, rfc3164 or raw (no parsing, e.g. for CEF)
+  #   job       job label on the logs, e.g. syslog/unifi
+  listeners: []
+
+scrape:
+  # Matches kube-prometheus-stack's default.
+  interval: 30s
+  # One entry per job:
+  #   job                Job label, e.g. homeassistant
+  #   addresses          host:port of each target, by DNS name; becomes `instance`
+  #   metricsPath        Default /metrics
+  #   scheme             http (default) or https
+  #   bearerTokenSecret  Optional {name, key} of a Secret in the release namespace
+  targets: []
+
+# Requests and limits: k8s-monitoring's `small` preset, as for the agent's collectors.
+# The config reloader's requests are the Alloy chart's default; its limits are the
+# kube-prometheus-stack chart example for the same prometheus-config-reloader image.
+alloy-gateway:
+  fullnameOverride: alloy-gateway
+  # One replica: a second would scrape every target twice, and syslog over UDP is lost
+  # during any restart anyway.
+  controller:
+    type: deployment
+    replicas: 1
+  alloy:
+    configMap:
+      create: false
+      # Must match the ConfigMap name in templates/alloy-gateway-config.yaml.
+      name: alloy-gateway-config
+      key: config.alloy
+    # HTTP inputs, on the ClusterIP Service the ingress points at. Syslog ports are on
+    # their own Service (templates/syslog-service.yaml).
+    extraPorts:
+      - name: otlp-grpc
+        port: 4317
+        targetPort: 4317
+        protocol: TCP
+      - name: otlp-http
+        port: 4318
+        targetPort: 4318
+        protocol: TCP
+      - name: loki-push
+        port: 3100
+        targetPort: 3100
+        protocol: TCP
+      - name: metrics-write
+        port: 9090
+        targetPort: 9090
+        protocol: TCP
+    resources:
+      requests:
+        cpu: 100m
+        memory: 128Mi
+      limits:
+        cpu: 500m
+        memory: 512Mi
+  configReloader:
+    resources:
+      requests:
+        cpu: 10m
+        memory: 50Mi
+      limits:
+        cpu: 200m
+        memory: 50Mi
+  # Only reads Secrets (scrape credentials) in its own namespace, instead of the
+  # chart's cluster-wide default rules.
+  rbac:
+    namespaces:
+      - observability
+    rules:
+      - apiGroups: [""]
+        resources: ["secrets"]
+        verbs: ["get", "list", "watch"]
+    clusterRules: []
+  serviceMonitor:
+    enabled: false

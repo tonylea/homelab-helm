@@ -1,0 +1,46 @@
+# Every input on (syslog in each format, a scrape target with a token, the ingress), so
+# lint, manifest validation and config validation cover them before real sources use them.
+endpoints:
+  loki: http://loki.observability.svc:3100
+  prometheus: http://prometheus-stack-prometheus.observability.svc:9090
+  tempoOtlpHttp: http://tempo.observability.svc:4318
+
+ingress:
+  enabled: true
+  className: ci
+  host: gateway.ci.example
+
+syslog:
+  service:
+    loadBalancerIP: 192.0.2.10
+  listeners:
+    - name: bsd-udp
+      port: 514
+      protocol: udp
+      format: rfc3164
+      job: syslog/ci-bsd
+    - name: ietf-tcp
+      port: 601
+      protocol: tcp
+      format: rfc5424
+      job: syslog/ci-ietf
+    - name: raw-udp
+      port: 5514
+      protocol: udp
+      format: raw
+      job: syslog/ci-raw
+
+scrape:
+  targets:
+    - job: ci-app
+      addresses:
+        - app-1.ci.example:8080
+        - app-2.ci.example:8080
+    - job: ci-secured
+      addresses:
+        - secured.ci.example:8123
+      metricsPath: /api/prometheus
+      scheme: https
+      bearerTokenSecret:
+        name: ci-token
+        key: token

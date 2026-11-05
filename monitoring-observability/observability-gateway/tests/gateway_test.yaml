@@ -1,0 +1,173 @@
+suite: observability gateway
+values:
+  - ../ci/all-inputs-values.yaml
+release:
+  namespace: observability
+tests:
+  - it: uses the ConfigMap name and key the Alloy subchart mounts
+    template: templates/alloy-gateway-config.yaml
+    set:
+      alloy-gateway.alloy.configMap.name: custom-name
+      alloy-gateway.alloy.configMap.key: custom.alloy
+    asserts:
+      - equal:
+          path: metadata.name
+          value: custom-name
+      - exists:
+          path: data["custom.alloy"]
+
+  - it: sends to observability-core without a cluster label
+    template: templates/alloy-gateway-config.yaml
+    asserts:
+      - matchRegex:
+          path: data["config.alloy"]
+          pattern: 'url = "http://loki.observability.svc:3100/loki/api/v1/push"'
+      - matchRegex:
+          path: data["config.alloy"]
+          pattern: 'url = "http://prometheus-stack-prometheus.observability.svc:9090/api/v1/write"'
+      - notMatchRegex:
+          path: data["config.alloy"]
+          pattern: cluster
+
+  - it: receives Loki push, remote write and OTLP on the ports the Service exposes
+    template: templates/alloy-gateway-config.yaml
+    asserts:
+      - matchRegex:
+          path: data["config.alloy"]
+          pattern: 'loki.source.api "agents"[\s\S]*listen_port\s+= 3100'
+      - matchRegex:
+          path: data["config.alloy"]
+          pattern: 'prometheus.receive_http "agents"[\s\S]*listen_port\s+= 9090'
+      - matchRegex:
+          path: data["config.alloy"]
+          pattern: 'endpoint = "0.0.0.0:4318"'
+
+  - it: sends traces over OTLP gRPC when no HTTP endpoint is set
+    template: templates/alloy-gateway-config.yaml
+    set:
+      endpoints.tempoOtlpHttp: ""
+      endpoints.tempoOtlpGrpc: tempo.observability.svc:4317
+    asserts:
+      - matchRegex:
+          path: data["config.alloy"]
+          pattern: 'otelcol.exporter.otlp "tempo"[\s\S]*endpoint = "tempo.observability.svc:4317"'
+
+  - it: fails when an endpoint is missing
+    template: templates/alloy-gateway-config.yaml
+    set:
+      endpoints.loki: ""
+    asserts:
+      - failedTemplate:
+          errorPattern: endpoints.loki is required
+
+  - it: listens for syslog on port + 10000 with each listener's protocol, format and job
+    template: templates/alloy-gateway-config.yaml
+    asserts:
+      - matchRegex:
+          path: data["config.alloy"]
+          pattern: 'address\s+= "0.0.0.0:10514"\s+protocol\s+= "udp"\s+syslog_format = "rfc3164"\s+labels\s+= \{ job = "syslog/ci-bsd" \}'
+      - matchRegex:
+          path: data["config.alloy"]
+          pattern: 'address\s+= "0.0.0.0:10601"\s+protocol\s+= "tcp"\s+syslog_format = "rfc5424"'
+      - matchRegex:
+          path: data["config.alloy"]
+          pattern: 'address\s+= "0.0.0.0:15514"\s+protocol\s+= "udp"\s+syslog_format = "raw"'
+
+  - it: takes host from the message hostname, then reverse DNS, then the sender's IP
+    template: templates/alloy-gateway-config.yaml
+    asserts:
+      - matchRegex:
+          path: data["config.alloy"]
+          pattern: '__syslog_connection_ip_address"\]\s+target_label  = "host"[\s\S]*__syslog_connection_hostname"\]\s+regex\s+= "\(\.\+\)"\s+target_label  = "host"[\s\S]*__syslog_message_hostname"\]\s+regex\s+= "\(\.\+\)"\s+target_label  = "host"'
+      - matchRegex:
+          path: data["config.alloy"]
+          pattern: 'stage.label_drop \{\s+values = \["source_ip", "level", "facility", "app_name"\]'
+
+  - it: leaves out syslog and its Service without listeners
+    templates:
+      - templates/alloy-gateway-config.yaml
+      - templates/syslog-service.yaml
+    set:
+      syslog.listeners: []
+    asserts:
+      - notMatchRegex:
+          path: data["config.alloy"]
+          pattern: loki.source.syslog
+        template: templates/alloy-gateway-config.yaml
+      - hasDocuments:
+          count: 0
+        template: templates/syslog-service.yaml
+
+  - it: exposes syslog on a LoadBalancer that keeps senders' IPs
+    template: templates/syslog-service.yaml
+    asserts:
+      - equal:
+          path: spec.type
+          value: LoadBalancer
+      - equal:
+          path: spec.externalTrafficPolicy
+          value: Local
+      - equal:
+          path: metadata.annotations["metallb.io/loadBalancerIPs"]
+          value: 192.0.2.10
+      - equal:
+          path: spec.selector
+          value:
+            app.kubernetes.io/name: alloy-gateway
+            app.kubernetes.io/instance: RELEASE-NAME
+      - contains:
+          path: spec.ports
+          content:
+            name: bsd-udp
+            port: 514
+            targetPort: 10514
+            protocol: UDP
+
+  - it: leaves the IP to MetalLB when none is set
+    template: templates/syslog-service.yaml
+    set:
+      syslog.service.loadBalancerIP: ""
+    asserts:
+      - notExists:
+          path: metadata.annotations
+
+  - it: scrapes each job's targets by name, with a token from a Secret when given
+    template: templates/alloy-gateway-config.yaml
+    asserts:
+      - matchRegex:
+          path: data["config.alloy"]
+          pattern: 'prometheus.scrape "ci_app"[\s\S]*__address__ = "app-1.ci.example:8080"[\s\S]*__address__ = "app-2.ci.example:8080"[\s\S]*metrics_path    = "/metrics"[\s\S]*scheme          = "http"'
+      - matchRegex:
+          path: data["config.alloy"]
+          pattern: 'remote.kubernetes.secret "ci_secured" \{\s+namespace = "observability"\s+name      = "ci-token"'
+      - matchRegex:
+          path: data["config.alloy"]
+          pattern: 'credentials = remote.kubernetes.secret.ci_secured.data\["token"\]'
+
+  - it: routes the push paths through the ingress
+    template: templates/ingress.yaml
+    asserts:
+      - equal:
+          path: spec.rules[0].host
+          value: gateway.ci.example
+      - contains:
+          path: spec.rules[0].http.paths
+          content:
+            path: /api/v1/metrics/write
+            pathType: Exact
+            backend:
+              service:
+                name: alloy-gateway
+                port:
+                  number: 9090
+      - lengthEqual:
+          path: spec.rules[0].http.paths
+          count: 5
+
+  - it: has no ingress unless enabled
+    template: templates/ingress.yaml
+    set:
+      ingress.enabled: false
+    asserts:
+      - hasDocuments:
+          count: 0

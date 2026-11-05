@@ -1,0 +1,11 @@
+apiVersion: v2
+name: observability-gateway
+description: Gateway (Grafana Alloy) that receives metrics, logs and traces from sources outside Kubernetes and sends them to observability-core.
+type: application
+version: 0.1.0
+kubeVersion: ">=1.30.0-0"
+dependencies:
+  - name: alloy
+    alias: alloy-gateway
+    version: 1.15.0
+    repository: https://grafana.github.io/helm-charts

@@ -1,0 +1,35 @@
+{{- if .Values.ingress.enabled }}
+{{- $paths := list
+  (dict "path" "/loki/api/v1/push" "port" 3100)
+  (dict "path" "/api/v1/metrics/write" "port" 9090)
+  (dict "path" "/v1/traces" "port" 4318)
+  (dict "path" "/v1/metrics" "port" 4318)
+  (dict "path" "/v1/logs" "port" 4318) }}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: alloy-gateway
+  labels:
+    {{- include "observability-gateway.labels" . | nindent 4 }}
+  {{- with .Values.ingress.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  {{- with .Values.ingress.className }}
+  ingressClassName: {{ . }}
+  {{- end }}
+  rules:
+    - host: {{ required "ingress.host is required" .Values.ingress.host }}
+      http:
+        paths:
+          {{- range $paths }}
+          - path: {{ .path }}
+            pathType: Exact
+            backend:
+              service:
+                name: {{ index $.Values "alloy-gateway" "fullnameOverride" }}
+                port:
+                  number: {{ .port }}
+          {{- end }}
+{{- end }}
