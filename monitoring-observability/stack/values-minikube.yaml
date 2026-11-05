@@ -6,6 +6,15 @@ grafanaAdmin:
     enabled: true
 
 kube-prometheus-stack:
+  prometheus:
+    prometheusSpec:
+      storageSpec:
+        volumeClaimTemplate:
+          spec:
+            storageClassName: observability-ssd
+  grafana:
+    persistence:
+      storageClassName: observability-ssd
   # minikube binds these control-plane components to 127.0.0.1, so scraping them
   # only produces "target down" alerts.
   kubeEtcd:
@@ -16,3 +25,12 @@ kube-prometheus-stack:
     enabled: false
   kubeProxy:
     enabled: false
+
+loki:
+  singleBinary:
+    persistence:
+      storageClass: observability-ssd
+
+tempo:
+  persistence:
+    storageClassName: observability-ssd

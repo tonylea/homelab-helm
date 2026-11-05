@@ -19,9 +19,10 @@ k8s events ──▶                ──metrics─▶ Prometheus ◀── scr
 
 Built from these upstream charts:
 
-- **kube-prometheus-stack:** Prometheus Operator, Prometheus, Alertmanager, Grafana,
-  node-exporter and kube-state-metrics. Prometheus scrapes the cluster and picks up
-  ServiceMonitors, PodMonitors, rules, probes and ScrapeConfigs from any release.
+- **kube-prometheus-stack:** Prometheus Operator, Prometheus, Alertmanager and
+  Grafana. Prometheus scrapes the cluster and picks up ServiceMonitors, PodMonitors,
+  rules, probes and ScrapeConfigs from any release. The chart's node-exporter and
+  kube-state-metrics are turned off.
 - **Loki:** monolithic mode (one replica) with filesystem storage.
 - **Tempo:** single binary. Its metrics generator writes service-graph and span
   metrics into Prometheus.
@@ -51,10 +52,19 @@ name.
 
 | Component | Volume | Retention |
 | --- | --- | --- |
-| Prometheus | 20Gi | 15 days or 18GB |
-| Loki | 20Gi | 31 days (744h) |
-| Tempo | 10Gi | 7 days (168h) |
+| Prometheus | 20Gi | 30 days or 18GB, whichever comes first |
+| Loki | 50Gi | 30 days (720h) |
+| Tempo | 25Gi | 14 days (336h) |
 | Grafana | 5Gi | n/a |
+
+Loki and Tempo only expire data by age, so their volume sizes aren't enforced limits.
+Prometheus also has a size limit (`retentionSize`).
+
+### Requests and limits
+
+Every container has requests and limits, set in `values.yaml`. A comment next to each
+says where its numbers come from: the component's docs, the upstream chart's example
+values, a community report, or our own choice where nothing is published.
 
 ### Grafana admin login
 
@@ -75,7 +85,7 @@ With `grafanaAdmin.externalSecret.enabled: true`, the chart renders an
 
 | File | Overrides |
 | --- | --- |
-| `values-minikube.yaml` | Turns on the 1Password ExternalSecret. Stops scraping etcd, kube-scheduler, kube-controller-manager and kube-proxy, which minikube binds to `127.0.0.1`. |
+| `values-minikube.yaml` | Turns on the 1Password ExternalSecret. Puts all four volumes on the `observability-ssd` storage class. Stops scraping etcd, kube-scheduler, kube-controller-manager and kube-proxy, which minikube binds to `127.0.0.1`. |
 
 ## agent
 

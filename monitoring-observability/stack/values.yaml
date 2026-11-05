@@ -58,8 +58,17 @@ kube-prometheus-stack:
       ruleSelectorNilUsesHelmValues: false
       probeSelectorNilUsesHelmValues: false
       scrapeConfigSelectorNilUsesHelmValues: false
-      retention: 15d
+      retention: 30d
       retentionSize: 18GB
+      # Memory: ~4KiB per active series with 2x headroom (Prometheus users list),
+      # assuming ~100k series. CPU is our own.
+      resources:
+        requests:
+          cpu: 200m
+          memory: 1Gi
+        limits:
+          cpu: "1"
+          memory: 2Gi
       storageSpec:
         volumeClaimTemplate:
           spec:
@@ -67,6 +76,56 @@ kube-prometheus-stack:
             resources:
               requests:
                 storage: 20Gi
+
+  # Requests and limits: where a source publishes a figure it is noted;
+  # anything else is our own and should be tuned from measured usage.
+
+  alertmanager:
+    alertmanagerSpec:
+      # Memory request from the chart's example; the rest is our own.
+      resources:
+        requests:
+          cpu: 10m
+          memory: 400Mi
+        limits:
+          cpu: 100m
+          memory: 512Mi
+
+  prometheusOperator:
+    # Chart's example.
+    resources:
+      requests:
+        cpu: 100m
+        memory: 100Mi
+      limits:
+        cpu: 200m
+        memory: 200Mi
+    # Config reloader sidecar in the Prometheus and Alertmanager pods. Chart's example.
+    prometheusConfigReloader:
+      resources:
+        requests:
+          cpu: 200m
+          memory: 50Mi
+        limits:
+          cpu: 200m
+          memory: 50Mi
+    admissionWebhooks:
+      # Shared by the one-off create-secret and patch Jobs. Our own.
+      patch:
+        resources:
+          requests:
+            cpu: 10m
+            memory: 32Mi
+          limits:
+            cpu: 100m
+            memory: 64Mi
+
+  # Per-cluster and per-node exporters belong to the agent chart, which runs on
+  # every cluster that sends data here.
+  kubeStateMetrics:
+    enabled: false
+  nodeExporter:
+    enabled: false
 
   grafana:
     fullnameOverride: grafana
@@ -77,12 +136,38 @@ kube-prometheus-stack:
     persistence:
       enabled: true
       size: 5Gi
+    # Requests are our own, below the Grafana docs' small tier (2 cores, 2-4GB);
+    # limits are that tier's lower end.
+    resources:
+      requests:
+        cpu: 100m
+        memory: 256Mi
+      limits:
+        cpu: "2"
+        memory: 2Gi
+    # Our own.
+    initChownData:
+      resources:
+        requests:
+          cpu: 10m
+          memory: 16Mi
+        limits:
+          cpu: 100m
+          memory: 32Mi
     # A ReadWriteOnce volume can't be attached to old and new pods at once.
     deploymentStrategy:
       type: Recreate
     testFramework:
       enabled: false
     sidecar:
+      # Applies to both the dashboards and datasources sidecars. Our own.
+      resources:
+        requests:
+          cpu: 10m
+          memory: 64Mi
+        limits:
+          cpu: 100m
+          memory: 128Mi
       datasources:
         enabled: true
       dashboards:
@@ -108,7 +193,7 @@ loki:
             prefix: index_
             period: 24h
     limits_config:
-      retention_period: 744h
+      retention_period: 720h
       allow_structured_metadata: true
     compactor:
       retention_enabled: true
@@ -117,7 +202,25 @@ loki:
     replicas: 1
     persistence:
       enabled: true
-      size: 20Gi
+      size: 50Gi
+    # No published figure for monolithic mode. Requests are our own; the memory
+    # limit covers the ~4GB query spikes reported by the community.
+    resources:
+      requests:
+        cpu: 200m
+        memory: 1Gi
+      limits:
+        cpu: "2"
+        memory: 4Gi
+  # Rules sidecar. Our own.
+  sidecar:
+    resources:
+      requests:
+        cpu: 10m
+        memory: 32Mi
+      limits:
+        cpu: 50m
+        memory: 64Mi
   # The chart's simple-scalable targets default to non-zero replicas.
   read:
     replicas: 0
@@ -142,7 +245,16 @@ tempo:
   fullnameOverride: tempo
   tempo:
     reportingEnabled: false
-    retention: 168h
+    retention: 336h
+    # Requests are our own, below the Tempo docs' 4 CPUs / 4-8GB starting point;
+    # limits are the chart's example.
+    resources:
+      requests:
+        cpu: 200m
+        memory: 1Gi
+      limits:
+        cpu: "2"
+        memory: 6Gi
     receivers:
       otlp:
         protocols:
@@ -162,6 +274,6 @@ tempo:
             - span-metrics
   persistence:
     enabled: true
-    size: 10Gi
+    size: 25Gi
   serviceMonitor:
     enabled: true
