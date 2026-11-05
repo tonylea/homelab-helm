@@ -5,6 +5,7 @@ Metrics, logs and traces for the homelab, viewed in Grafana.
 | Chart | What it does |
 | --- | --- |
 | [`observability-core`](observability-core) | Stores and queries metrics (Prometheus), logs (Loki) and traces (Tempo); Grafana on top |
+| [`prometheus-operator-crds`](prometheus-operator-crds) | Prometheus Operator CRDs for clusters without observability-core, so the agent can scrape ServiceMonitors and PodMonitors there |
 | [`observability-agent`](observability-agent) | Runs on each cluster: collects its metrics, logs, events and app telemetry and sends them to observability-core (Grafana Alloy, node-exporter, kube-state-metrics) |
 
 Upstream chart versions are pinned in each chart's `Chart.yaml`.
@@ -92,6 +93,15 @@ With `grafanaAdmin.externalSecret.enabled: true`, the chart renders an
 | --- | --- |
 | `values-minikube.yaml` | Turns on the 1Password ExternalSecret. Puts all four volumes on the `observability-ssd` storage class. Adds `nginx` ingresses for `grafana`, `prometheus` and `alertmanager` under `internal.deadrobot.co.uk`. Labels what Prometheus scrapes itself with `cluster: minikube`, matching the agent's data. Sends Grafana's own traces to the agent's OTLP receiver. Exposes ingest endpoints for other clusters' agents: Loki push paths on `loki`, Prometheus remote write on `prometheus`, and Tempo OTLP traces on `tempo` (`tempoOtlpIngress`), all under `internal.deadrobot.co.uk`. |
 
+## prometheus-operator-crds
+
+The Prometheus Operator CRDs (ServiceMonitor, PodMonitor, PrometheusRule and the rest),
+from the upstream `prometheus-operator-crds` chart, pinned to the same operator version
+as observability-core's kube-prometheus-stack. Install it on clusters that run the agent
+but not observability-core, before the agent. Not needed where observability-core runs:
+kube-prometheus-stack installs the same CRDs. The CRDs are too large for a client-side
+apply, so Argo CD needs server-side apply for it.
+
 ## observability-agent
 
 One install per cluster. Four Grafana Alloy instances, laid out as in Grafana's
@@ -128,7 +138,7 @@ An endpoint is only required when a `collect` option that uses it is on.
 
 | File | Overrides |
 | --- | --- |
-| `values-k3s.yaml` | `cluster: k3s`; sends to observability-core's ingest hosts under `internal.deadrobot.co.uk` over HTTP. ServiceMonitor/PodMonitor scraping off: k3s has no Prometheus Operator CRDs. |
+| `values-k3s.yaml` | `cluster: k3s`; sends to observability-core's ingest hosts under `internal.deadrobot.co.uk` over HTTP. ServiceMonitor/PodMonitor scraping on (needs `prometheus-operator-crds` installed first), with ServiceMonitors for the Alloy collectors. |
 | `values-minikube.yaml` | `cluster: minikube`; endpoints point at observability-core in the `observability` namespace. Node logs off. ServiceMonitor/PodMonitor scraping off, since observability-core's Prometheus already does it there; the Alloy collectors get ServiceMonitors so it scrapes them too. |
 
 ## Tests

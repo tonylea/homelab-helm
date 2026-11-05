@@ -1,0 +1,3 @@
+# Installs every Prometheus Operator CRD with the upstream chart's defaults. Not for
+# clusters running observability-core: kube-prometheus-stack installs these there.
+prometheus-operator-crds: {}

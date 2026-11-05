@@ -10,7 +10,18 @@ endpoints:
   prometheus: http://prometheus.internal.deadrobot.co.uk
   tempoOtlpHttp: http://tempo.internal.deadrobot.co.uk
 
-collect:
-  # k3s has no Prometheus Operator CRDs, so nothing defines ServiceMonitors or
-  # PodMonitors yet.
-  serviceMonitors: false
+# ServiceMonitor/PodMonitor scraping stays on (the default). It needs the Prometheus
+# Operator CRDs, installed on k3s by the prometheus-operator-crds chart. The Alloy
+# collectors get ServiceMonitors too, so alloy-metrics scrapes the agent itself.
+alloy-logs:
+  serviceMonitor:
+    enabled: true
+alloy-receiver:
+  serviceMonitor:
+    enabled: true
+alloy-events:
+  serviceMonitor:
+    enabled: true
+alloy-metrics:
+  serviceMonitor:
+    enabled: true

@@ -1,0 +1,12 @@
+apiVersion: v2
+name: monitoring-observability-prometheus-operator-crds
+description: Prometheus Operator CRDs (ServiceMonitor, PodMonitor and friends) for clusters that don't run observability-core, so the agent can scrape ServiceMonitors and PodMonitors there.
+type: application
+version: 0.1.0
+kubeVersion: ">=1.30.0-0"
+dependencies:
+  # Same operator version (v0.94.2) as observability-core's kube-prometheus-stack, so
+  # every cluster uses the same CRD definitions. Upgrade the two together.
+  - name: prometheus-operator-crds
+    version: 32.0.2
+    repository: https://prometheus-community.github.io/helm-charts
