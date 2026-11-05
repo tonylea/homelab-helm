@@ -55,6 +55,22 @@ tests:
           path: data["config.alloy"]
           pattern: 'endpoint = "tempo.observability.svc:4317"'
 
+  - it: sends traces over OTLP HTTP when tempoOtlpHttp is set
+    template: templates/alloy-receiver-config.yaml
+    set:
+      endpoints.tempoOtlpHttp: http://tempo.example/
+      endpoints.tempoOtlpGrpc: ""
+    asserts:
+      - matchRegex:
+          path: data["config.alloy"]
+          pattern: 'traces  = \[otelcol.exporter.otlphttp.tempo.input\]'
+      - matchRegex:
+          path: data["config.alloy"]
+          pattern: 'otelcol.exporter.otlphttp "tempo"[\s\S]*endpoint = "http://tempo.example"'
+      - notMatchRegex:
+          path: data["config.alloy"]
+          pattern: 'otelcol.exporter.otlp "tempo"'
+
   - it: reads pod logs only from its own node
     template: templates/alloy-logs-config.yaml
     asserts:

@@ -18,8 +18,11 @@ endpoints:
   loki: ""
   # Prometheus base URL, e.g. http://prometheus-stack-prometheus.observability.svc:9090
   prometheus: ""
-  # Tempo OTLP gRPC host:port, e.g. tempo.observability.svc:4317
+  # Tempo OTLP: set one. gRPC host:port, e.g. tempo.observability.svc:4317, for the same
+  # cluster; or an HTTP base URL, e.g. http://tempo.internal.deadrobot.co.uk, through an
+  # ingress (the chart appends /v1/traces). HTTP wins if both are set.
   tempoOtlpGrpc: ""
+  tempoOtlpHttp: ""
 
 collect:
   # Container logs from every pod, read from /var/log/pods on each node.
@@ -55,6 +58,11 @@ alloy-logs:
   fullnameOverride: alloy-logs
   controller:
     type: daemonset
+    # Also run on control-plane nodes, to read their pod and journal logs.
+    tolerations:
+      - key: node-role.kubernetes.io/control-plane
+        operator: Exists
+        effect: NoSchedule
   alloy:
     configMap:
       create: false

@@ -11,28 +11,56 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "loki": { "type": "string", "pattern": "^(https?://.+)?$" },
-        "prometheus": { "type": "string", "pattern": "^(https?://.+)?$" },
-        "tempoOtlpGrpc": { "type": "string", "pattern": "^([^/:]+:[0-9]+)?$" }
+        "loki": {
+          "type": "string",
+          "pattern": "^(https?://.+)?$"
+        },
+        "prometheus": {
+          "type": "string",
+          "pattern": "^(https?://.+)?$"
+        },
+        "tempoOtlpGrpc": {
+          "type": "string",
+          "pattern": "^([^/:]+:[0-9]+)?$"
+        },
+        "tempoOtlpHttp": {
+          "type": "string",
+          "pattern": "^(https?://.+)?$"
+        }
       }
     },
     "collect": {
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "podLogs": { "type": "boolean" },
-        "nodeLogs": { "type": "boolean" },
-        "events": { "type": "boolean" },
-        "otlp": { "type": "boolean" },
-        "clusterMetrics": { "type": "boolean" },
-        "serviceMonitors": { "type": "boolean" }
+        "podLogs": {
+          "type": "boolean"
+        },
+        "nodeLogs": {
+          "type": "boolean"
+        },
+        "events": {
+          "type": "boolean"
+        },
+        "otlp": {
+          "type": "boolean"
+        },
+        "clusterMetrics": {
+          "type": "boolean"
+        },
+        "serviceMonitors": {
+          "type": "boolean"
+        }
       }
     },
     "nodeLogs": {
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "journalPath": { "type": "string", "pattern": "^/.+" }
+        "journalPath": {
+          "type": "string",
+          "pattern": "^/.+"
+        }
       }
     },
     "scrapeInterval": {
