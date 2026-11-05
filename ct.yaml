@@ -8,6 +8,7 @@ check-version-increment: true
 # One entry per area folder. An area missing here has its charts ignored by CI.
 chart-dirs:
   - monitoring-observability
+  - secrets-management
   - storage
 
 # Repositories chart dependencies are pulled from.
@@ -16,3 +17,4 @@ chart-repos:
   - grafana=https://grafana.github.io/helm-charts
   - grafana-community=https://grafana-community.github.io/helm-charts
   - containeroo=https://charts.containeroo.ch
+  - external-secrets=https://charts.external-secrets.io

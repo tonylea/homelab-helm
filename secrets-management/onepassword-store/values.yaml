@@ -1,0 +1,17 @@
+# ClusterSecretStore for External Secrets Operator's 1Password SDK provider. It reads a
+# single 1Password vault, authenticating with a 1Password service account token.
+# Requires the operator (secrets-management/external-secrets) to be installed first.
+
+# Name ExternalSecrets use in secretStoreRef.
+storeName: onepassword
+
+# 1Password vault the store reads. Required. Set on the Argo CD Application as a Helm
+# parameter rather than in this repository.
+vault: ""
+
+# Kubernetes Secret holding the 1Password service account token. Created by hand once
+# per cluster; never stored in this repository.
+serviceAccountToken:
+  secretName: onepassword-service-account
+  key: token
+  namespace: external-secrets

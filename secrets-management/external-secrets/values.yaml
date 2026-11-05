@@ -1,0 +1,31 @@
+# External Secrets Operator: the controller, its admission webhook and the cert-controller
+# that manages the webhook's certificate. One replica each (upstream default).
+# The operator's CRDs are installed by this chart, so stores (ClusterSecretStore) live in a
+# separate chart installed after this one.
+
+external-secrets:
+  resources:
+    requests:
+      cpu: 10m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 256Mi
+
+  webhook:
+    resources:
+      requests:
+        cpu: 10m
+        memory: 32Mi
+      limits:
+        cpu: 100m
+        memory: 128Mi
+
+  certController:
+    resources:
+      requests:
+        cpu: 10m
+        memory: 32Mi
+      limits:
+        cpu: 100m
+        memory: 128Mi

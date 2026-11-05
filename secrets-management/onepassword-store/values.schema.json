@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "storeName": {
+      "type": "string",
+      "pattern": "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$"
+    },
+    "vault": {
+      "type": "string"
+    },
+    "serviceAccountToken": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["secretName", "key", "namespace"],
+      "properties": {
+        "secretName": { "type": "string", "minLength": 1 },
+        "key": { "type": "string", "minLength": 1 },
+        "namespace": { "type": "string", "minLength": 1 }
+      }
+    }
+  }
+}

@@ -8,6 +8,7 @@ ignorePaths:
   - "**/Chart.lock"
   - ".git/**"
 words:
+  - clustersecretstore
   - containeroo
   - datreeio
   - dorny

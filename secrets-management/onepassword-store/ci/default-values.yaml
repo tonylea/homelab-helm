@@ -1,0 +1,2 @@
+# Values for CI. The real vault name is set on the Argo CD Application.
+vault: ci-placeholder

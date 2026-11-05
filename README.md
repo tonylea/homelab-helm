@@ -5,10 +5,11 @@
 Charts are grouped into area folders. Each area has its own README with what its
 charts do and how to configure them.
 
-| Area                                                           | Charts                   | What it does                                               |
-| -------------------------------------------------------------- | ------------------------ | ---------------------------------------------------------- |
-| [monitoring-observability](monitoring-observability/README.md) | `stack`, `agent`         | Metrics, logs and traces: storage, querying and collection |
-| [storage](storage/README.md)                                   | `local-path-provisioner` | Volumes created on demand under a base path on the node    |
+| Area                                                           | Charts                                  | What it does                                               |
+| -------------------------------------------------------------- | --------------------------------------- | ---------------------------------------------------------- |
+| [monitoring-observability](monitoring-observability/README.md) | `stack`, `agent`                        | Metrics, logs and traces: storage, querying and collection |
+| [secrets-management](secrets-management/README.md)             | `external-secrets`, `onepassword-store` | Kubernetes Secrets created from 1Password                  |
+| [storage](storage/README.md)                                   | `local-path-provisioner`                | Volumes created on demand under a base path on the node    |
 
 ## Layout
 
