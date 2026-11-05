@@ -1,5 +1,11 @@
 # homelab-helm
 
+## Git
+
+- Never push unless the user explicitly asks for a push in that request.
+  `.claude/settings.json` makes `git push` prompt for approval; don't work around it
+  with another form of the command (e.g. `git -C . push`).
+
 ## Chart conventions
 
 - Cluster-specific settings go in `values-<cluster>.yaml`, applied on top of `values.yaml`.
