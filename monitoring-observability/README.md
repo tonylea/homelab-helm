@@ -4,8 +4,8 @@ Metrics, logs and traces for the homelab, viewed in Grafana.
 
 | Chart | What it does |
 | --- | --- |
-| [`stack`](stack) | Stores and queries metrics (Prometheus), logs (Loki) and traces (Tempo); Grafana on top |
-| [`agent`](agent) | Collects pod logs, Kubernetes events and OTLP telemetry, and sends them to the stack (Grafana Alloy) |
+| [`observability-core`](observability-core) | Stores and queries metrics (Prometheus), logs (Loki) and traces (Tempo); Grafana on top |
+| [`agent`](agent) | Collects pod logs, Kubernetes events and OTLP telemetry, and sends them to observability-core (Grafana Alloy) |
 
 Upstream chart versions are pinned in each chart's `Chart.yaml`.
 
@@ -15,7 +15,7 @@ pod logs ────▶                ──logs────▶ Loki   ├─�
 k8s events ──▶                ──metrics─▶ Prometheus ◀── scrapes the cluster
 ```
 
-## stack
+## observability-core
 
 Built from these upstream charts:
 
@@ -108,16 +108,16 @@ An endpoint is only required when a `collect` option that uses it is on.
 
 | File | Overrides |
 | --- | --- |
-| `values-minikube.yaml` | `cluster: minikube`; endpoints point at the stack in the `monitoring` namespace. |
+| `values-minikube.yaml` | `cluster: minikube`; endpoints point at observability-core in the `observability` namespace. |
 
 ## Tests
 
 | What | Where | Checks |
 | --- | --- | --- |
-| Unit tests | `stack/tests/*_test.yaml` | Datasource provisioning and linking; the ExternalSecret's name, keys and store |
+| Unit tests | `observability-core/tests/*_test.yaml` | Datasource provisioning and linking; the ExternalSecret's name, keys and store |
 | Unit tests | `agent/tests/*_test.yaml` | Generated Alloy config: endpoints, cluster label, toggles, required values |
 | Alloy validation | `agent/tests/validate-alloy-config.sh` | Runs `alloy validate` (same Alloy version as the subchart, via Docker) on the config rendered from each values file |
 | End-to-end tests | `tests/end-to-end-tests.sh` | Installs both charts with their `ci/` values, sends a trace, a metric and a log through the agent over OTLP, and checks they arrive in Tempo, Prometheus and Loki. Also checks pod logs and events reach Loki, Tempo span metrics reach Prometheus, and Grafana has all three datasources. |
 
-`tests/end-to-end-tests.sh` installs releases named `stack` and `agent` into the `monitoring`
+`tests/end-to-end-tests.sh` installs releases named `observability-core` and `agent` into the `observability`
 namespace of your current kubectl context. Only run it against a disposable cluster.

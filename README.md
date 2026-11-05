@@ -7,7 +7,7 @@ charts do and how to configure them.
 
 | Area                                                           | Charts                                  | What it does                                               |
 | -------------------------------------------------------------- | --------------------------------------- | ---------------------------------------------------------- |
-| [monitoring-observability](monitoring-observability/README.md) | `stack`, `agent`                        | Metrics, logs and traces: storage, querying and collection |
+| [monitoring-observability](monitoring-observability/README.md) | `observability-core`, `agent`           | Metrics, logs and traces: storage, querying and collection |
 | [secrets-management](secrets-management/README.md)             | `external-secrets`, `onepassword-store` | Kubernetes Secrets created from 1Password                  |
 | [storage](storage/README.md)                                   | `local-path-provisioner`                | Volumes created on demand under a base path on the node    |
 

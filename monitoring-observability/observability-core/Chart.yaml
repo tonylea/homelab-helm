@@ -1,8 +1,8 @@
 apiVersion: v2
-name: monitoring-observability-stack
+name: observability-core
 description: Central metrics, logs and traces backends (Prometheus, Loki, Tempo) with Grafana.
 type: application
-version: 0.2.0
+version: 0.3.0
 kubeVersion: ">=1.30.0-0"
 dependencies:
   - name: kube-prometheus-stack

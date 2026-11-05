@@ -5,7 +5,7 @@ kind: ConfigMap
 metadata:
   name: {{ .Release.Name }}-datasources
   labels:
-    {{- include "stack.labels" . | nindent 4 }}
+    {{- include "observability-core.labels" . | nindent 4 }}
     grafana_datasource: "1"
 data:
   datasources.yaml: |

@@ -1,8 +1,8 @@
 apiVersion: v2
 name: monitoring-observability-agent
-description: Grafana Alloy collector that ships a cluster's logs, events and OTLP telemetry to the stack.
+description: Grafana Alloy collector that ships a cluster's logs, events and OTLP telemetry to observability-core.
 type: application
-version: 0.1.0
+version: 0.2.0
 kubeVersion: ">=1.30.0-0"
 dependencies:
   - name: alloy

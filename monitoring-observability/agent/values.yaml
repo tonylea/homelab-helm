@@ -4,13 +4,13 @@
 # Added as the `cluster` label on everything this agent sends. Required.
 cluster: ""
 
-# Where the stack receives data. Base URLs; the chart appends the API paths.
+# Where observability-core receives data. Base URLs; the chart appends the API paths.
 endpoints:
-  # Loki base URL, e.g. http://loki.monitoring.svc:3100
+  # Loki base URL, e.g. http://loki.observability.svc:3100
   loki: ""
-  # Prometheus base URL, e.g. http://prometheus-stack-prometheus.monitoring.svc:9090
+  # Prometheus base URL, e.g. http://prometheus-stack-prometheus.observability.svc:9090
   prometheus: ""
-  # Tempo OTLP gRPC host:port, e.g. tempo.monitoring.svc:4317
+  # Tempo OTLP gRPC host:port, e.g. tempo.observability.svc:4317
   tempoOtlpGrpc: ""
 
 collect:

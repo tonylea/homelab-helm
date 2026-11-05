@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# End-to-end tests for monitoring-observability: installs stack + agent with their
+# End-to-end tests for monitoring-observability: installs observability-core + agent with their
 # ci/ values into the current kubectl context, sends one trace, one metric and one
 # log through the agent over OTLP, and checks each lands in Tempo, Prometheus and
 # Loki. Also checks the agent ships pod logs and Grafana has its datasources.
@@ -9,7 +9,7 @@
 set -euo pipefail
 
 area="$(cd "$(dirname "$0")/.." && pwd)"
-ns=monitoring
+ns=observability
 timeout_s=${E2E_QUERY_TIMEOUT:-180}
 run_id="$(openssl rand -hex 6)"
 trace_id="$(openssl rand -hex 16)"
@@ -53,9 +53,9 @@ port_forward() {
   pf_pids+=($!)
 }
 
-log "Installing stack and agent (run ${run_id})"
-helm upgrade --install stack "$area/stack" -n "$ns" --create-namespace \
-  -f "$area/stack/ci/default-values.yaml" --wait --timeout 10m
+log "Installing observability-core and agent (run ${run_id})"
+helm upgrade --install observability-core "$area/observability-core" -n "$ns" --create-namespace \
+  -f "$area/observability-core/ci/default-values.yaml" --wait --timeout 10m
 helm upgrade --install agent "$area/agent" -n "$ns" \
   -f "$area/agent/ci/default-values.yaml" --wait --timeout 5m
 kubectl -n "$ns" rollout status statefulset/loki statefulset/tempo --timeout 5m

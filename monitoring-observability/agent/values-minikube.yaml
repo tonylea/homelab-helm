@@ -4,6 +4,6 @@
 cluster: minikube
 
 endpoints:
-  loki: http://loki.monitoring.svc:3100
-  prometheus: http://prometheus-stack-prometheus.monitoring.svc:9090
-  tempoOtlpGrpc: tempo.monitoring.svc:4317
+  loki: http://loki.observability.svc:3100
+  prometheus: http://prometheus-stack-prometheus.observability.svc:9090
+  tempoOtlpGrpc: tempo.observability.svc:4317

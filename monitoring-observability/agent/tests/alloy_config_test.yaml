@@ -39,10 +39,10 @@ tests:
           pattern: 'endpoint = "http://loki:3100/otlp"'
       - matchRegex:
           path: data["config.alloy"]
-          pattern: 'url = "http://prometheus-stack-prometheus.monitoring.svc:9090/api/v1/write"'
+          pattern: 'url = "http://prometheus-stack-prometheus.observability.svc:9090/api/v1/write"'
       - matchRegex:
           path: data["config.alloy"]
-          pattern: 'endpoint = "tempo.monitoring.svc:4317"'
+          pattern: 'endpoint = "tempo.observability.svc:4317"'
 
   - it: leaves out OTLP when disabled
     set:

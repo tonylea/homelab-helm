@@ -1,4 +1,4 @@
-# Central observability stack: Prometheus (metrics), Loki (logs), Tempo (traces), Grafana.
+# observability-core: Prometheus (metrics), Loki (logs), Tempo (traces), Grafana.
 # Every backend has its ingest endpoint switched on so other clusters and devices can
 # send data later without changing the chart.
 #
