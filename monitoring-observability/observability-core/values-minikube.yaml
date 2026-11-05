@@ -5,6 +5,8 @@ grafanaAdmin:
   externalSecret:
     enabled: true
 
+# Web UIs go through minikube's ingress-nginx addon on ports 80/443. Each host
+# needs an /etc/hosts entry pointing at 127.0.0.1.
 kube-prometheus-stack:
   prometheus:
     prometheusSpec:
@@ -12,9 +14,27 @@ kube-prometheus-stack:
         volumeClaimTemplate:
           spec:
             storageClassName: observability-ssd
+    ingress:
+      enabled: true
+      ingressClassName: nginx
+      hosts: [prometheus.local]
+      paths: [/]
+      pathType: Prefix
+  alertmanager:
+    ingress:
+      enabled: true
+      ingressClassName: nginx
+      hosts: [alertmanager.local]
+      paths: [/]
+      pathType: Prefix
   grafana:
     persistence:
       storageClassName: observability-ssd
+    ingress:
+      enabled: true
+      ingressClassName: nginx
+      hosts: [grafana.local]
+      path: /
   # minikube binds these control-plane components to 127.0.0.1, so scraping them
   # only produces "target down" alerts.
   kubeEtcd:

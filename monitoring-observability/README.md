@@ -85,7 +85,7 @@ With `grafanaAdmin.externalSecret.enabled: true`, the chart renders an
 
 | File | Overrides |
 | --- | --- |
-| `values-minikube.yaml` | Turns on the 1Password ExternalSecret. Puts all four volumes on the `observability-ssd` storage class. Stops scraping etcd, kube-scheduler, kube-controller-manager and kube-proxy, which minikube binds to `127.0.0.1`. |
+| `values-minikube.yaml` | Turns on the 1Password ExternalSecret. Puts all four volumes on the `observability-ssd` storage class. Adds `nginx` ingresses for `grafana.local`, `prometheus.local` and `alertmanager.local`. Stops scraping etcd, kube-scheduler, kube-controller-manager and kube-proxy, which minikube binds to `127.0.0.1`. |
 
 ## agent
 
