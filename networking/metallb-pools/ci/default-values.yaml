@@ -1,0 +1,4 @@
+# Values for CI. TEST-NET-1 addresses: assigned by MetalLB, never reachable.
+pool:
+  addresses:
+    - 192.0.2.50-192.0.2.59

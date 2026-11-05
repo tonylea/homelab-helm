@@ -1,0 +1,43 @@
+# MetalLB: the controller hands out IPs from IPAddressPools to LoadBalancer Services,
+# and the speaker DaemonSet answers ARP for them (L2 mode). The CRDs and admission
+# webhook are installed by this chart, so pools live in a separate chart
+# (networking/metallb-pools) installed after this one.
+
+metallb:
+  # Fixed names (metallb-controller, metallb-speaker) whatever the release is called.
+  fullnameOverride: metallb
+
+  # Native mode: L2 only, no BGP, so neither FRR backend is deployed. FRR-K8s (the
+  # upstream default) adds a DaemonSet and FRR mode adds sidecars to every speaker.
+  frrk8s:
+    enabled: false
+
+  controller:
+    # Sized from measured usage of MetalLB 0.15.3 on k3s: peak 45Mi, 3m CPU.
+    resources:
+      requests:
+        cpu: 10m
+        memory: 64Mi
+      limits:
+        cpu: 100m
+        memory: 128Mi
+
+  speaker:
+    frr:
+      enabled: false
+    # Sized from measured usage of MetalLB 0.15.3 on k3s: busiest speaker peaked at
+    # 62Mi and 8m CPU. Any speaker can become the busiest one.
+    resources:
+      requests:
+        cpu: 10m
+        memory: 64Mi
+      limits:
+        cpu: 100m
+        memory: 128Mi
+
+  prometheus:
+    # Metrics are HTTPS and authorised against Kubernetes RBAC. The scraper's own
+    # ClusterRole (observability-agent's alloy-metrics) already allows discovery and
+    # /metrics, so MetalLB's extra Role for it isn't needed. ServiceMonitors are
+    # turned on per cluster, where the Prometheus Operator CRDs are installed.
+    rbacPrometheus: false

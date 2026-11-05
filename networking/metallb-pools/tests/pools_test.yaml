@@ -1,0 +1,81 @@
+suite: address pool and L2 advertisement
+values:
+  - ../ci/default-values.yaml
+release:
+  namespace: metallb-system
+tests:
+  - it: is an IPAddressPool in MetalLB's namespace
+    template: templates/ipaddresspool.yaml
+    asserts:
+      - isKind:
+          of: IPAddressPool
+      - isAPIVersion:
+          of: metallb.io/v1beta1
+      - equal:
+          path: metadata.name
+          value: default-pool
+      - equal:
+          path: metadata.namespace
+          value: metallb-system
+
+  - it: hands out only IPs a Service asks for
+    template: templates/ipaddresspool.yaml
+    asserts:
+      - equal:
+          path: spec.autoAssign
+          value: false
+
+  - it: uses the k3s range on k3s
+    template: templates/ipaddresspool.yaml
+    values:
+      - ../values-k3s.yaml
+    asserts:
+      - equal:
+          path: spec.addresses
+          value:
+            - 192.168.30.50-192.168.30.59
+
+  - it: fails without addresses
+    template: templates/ipaddresspool.yaml
+    set:
+      pool.addresses: []
+    asserts:
+      - failedTemplate:
+          errorPattern: pool.addresses is required
+
+  - it: rejects an address that is not a range or CIDR
+    template: templates/ipaddresspool.yaml
+    set:
+      pool.addresses:
+        - 192.168.30.50
+    asserts:
+      - failedTemplate: {}
+
+  - it: advertises the pool over L2
+    template: templates/l2advertisement.yaml
+    asserts:
+      - isKind:
+          of: L2Advertisement
+      - equal:
+          path: metadata.name
+          value: default-pool
+      - equal:
+          path: spec.ipAddressPools
+          value:
+            - default-pool
+
+  - it: follows a renamed pool
+    templates:
+      - templates/ipaddresspool.yaml
+      - templates/l2advertisement.yaml
+    set:
+      pool.name: other
+    asserts:
+      - equal:
+          path: metadata.name
+          value: other
+      - equal:
+          path: spec.ipAddressPools
+          value:
+            - other
+        template: templates/l2advertisement.yaml

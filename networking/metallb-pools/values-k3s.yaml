@@ -1,0 +1,4 @@
+# V30. .50 is kept for Traefik and .51 is the observability gateway; the rest are spare.
+pool:
+  addresses:
+    - 192.168.30.50-192.168.30.59

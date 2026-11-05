@@ -1,0 +1,14 @@
+{{- if not .Values.pool.addresses }}
+{{- fail "pool.addresses is required" }}
+{{- end }}
+apiVersion: metallb.io/v1beta1
+kind: IPAddressPool
+metadata:
+  name: {{ .Values.pool.name }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "metallb-pools.labels" . | nindent 4 }}
+spec:
+  addresses:
+    {{- toYaml .Values.pool.addresses | nindent 4 }}
+  autoAssign: {{ .Values.pool.autoAssign }}

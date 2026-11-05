@@ -1,0 +1,12 @@
+# MetalLB's address pool and its L2 advertisement. Requires MetalLB
+# (networking/metallb) to be installed first, in the same namespace as this release.
+
+pool:
+  # Name of the IPAddressPool and the L2Advertisement.
+  name: default-pool
+  # Addresses MetalLB may hand out, as ranges (a.b.c.d-a.b.c.e) or CIDRs. Required.
+  # Set per cluster.
+  addresses: []
+  # false: a Service only gets an IP it asks for with the metallb.io/loadBalancerIPs
+  # annotation. Without one it stays pending, so IPs never change under DNS records.
+  autoAssign: false

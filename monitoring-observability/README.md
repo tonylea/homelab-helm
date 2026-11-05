@@ -154,7 +154,7 @@ sources go through the gateway. It runs on k3s and sends to observability-core o
 same ingest hosts as the k3s agent.
 
 Sources reach it directly on a pinned MetalLB IP, with no ingress in between, so it
-depends only on DNS, MetalLB and its own pod. Every input is a port on one
+depends only on DNS, MetalLB ([networking](../networking/README.md)) and its own pod. Every input is a port on one
 LoadBalancer Service, `alloy-gateway-lb`, with `externalTrafficPolicy: Local` so the
 gateway sees senders' real IPs.
 
@@ -183,7 +183,7 @@ by IP:
 | Value | Meaning |
 | --- | --- |
 | `endpoints.*` | observability-core base URLs, as for observability-agent. |
-| `service.loadBalancerIP` | Fixed IP for `alloy-gateway-lb`, set as MetalLB's `metallb.io/loadBalancerIPs` annotation so it never moves. Must be in a MetalLB pool. Empty lets MetalLB pick. |
+| `service.loadBalancerIP` | Fixed IP for `alloy-gateway-lb`, set as MetalLB's `metallb.io/loadBalancerIPs` annotation so it never moves. Must be in a MetalLB pool. Empty leaves it to MetalLB, which only picks one from a pool with `autoAssign` on. |
 | `service.annotations` | Extra annotations on `alloy-gateway-lb`. |
 | `syslog.listeners` | One entry per port and format: `name`, `port`, `protocol` (`udp`/`tcp`), `format` (`rfc5424`, `rfc3164` or `raw`) and `job`. Alloy listens on `port` + 10000 in the pod, so ports below 1024 need no privileges. Names and TCP ports can't clash with the push inputs. |
 | `scrape.targets` | One entry per job: `job`, `addresses` (`host:port`, by DNS name), optional `metricsPath`, `scheme` and `bearerTokenSecret` (`name` and `key` of a Secret in the release namespace). |

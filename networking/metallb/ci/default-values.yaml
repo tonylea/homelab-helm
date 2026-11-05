@@ -1,0 +1,3 @@
+# Values for CI: the defaults. No ServiceMonitors, as the CI cluster has no Prometheus
+# Operator CRDs.
+{}

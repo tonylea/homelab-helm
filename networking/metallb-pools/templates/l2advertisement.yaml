@@ -1,0 +1,11 @@
+# Answers ARP for the pool's addresses from every node running a speaker.
+apiVersion: metallb.io/v1beta1
+kind: L2Advertisement
+metadata:
+  name: {{ .Values.pool.name }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "metallb-pools.labels" . | nindent 4 }}
+spec:
+  ipAddressPools:
+    - {{ .Values.pool.name }}

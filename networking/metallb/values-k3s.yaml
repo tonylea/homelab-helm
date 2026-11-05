@@ -1,0 +1,5 @@
+# Scraped by observability-agent through these ServiceMonitors.
+metallb:
+  prometheus:
+    serviceMonitor:
+      enabled: true

@@ -1,0 +1,6 @@
+apiVersion: v2
+name: networking-metallb-pools
+description: MetalLB address pool and L2 advertisement. Services must ask for their IP.
+type: application
+version: 0.1.0
+kubeVersion: ">=1.30.0-0"

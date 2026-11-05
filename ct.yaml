@@ -9,6 +9,7 @@ check-version-increment: true
 chart-dirs:
   - gitops
   - monitoring-observability
+  - networking
   - secrets-management
   - storage
 
@@ -19,3 +20,4 @@ chart-repos:
   - grafana-community=https://grafana-community.github.io/helm-charts
   - containeroo=https://charts.containeroo.ch
   - external-secrets=https://charts.external-secrets.io
+  - metallb=https://metallb.github.io/metallb

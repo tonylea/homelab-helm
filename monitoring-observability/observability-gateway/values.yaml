@@ -29,7 +29,8 @@ endpoints:
 # externalTrafficPolicy is Local, so the gateway sees each sender's real IP (used for
 # reverse DNS when a syslog message has no hostname).
 service:
-  # Fixed IP from a MetalLB pool, so it never moves. Empty lets MetalLB pick one.
+  # Fixed IP from a MetalLB pool, so it never moves. Empty leaves it to MetalLB, which
+  # only picks one from a pool with autoAssign on (the k3s pool has it off).
   loadBalancerIP: ""
   annotations: {}
 

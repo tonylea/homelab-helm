@@ -1,0 +1,10 @@
+apiVersion: v2
+name: networking-metallb
+description: MetalLB, giving LoadBalancer Services an IP on the node network in L2 mode.
+type: application
+version: 0.1.0
+kubeVersion: ">=1.30.0-0"
+dependencies:
+  - name: metallb
+    version: 0.16.2
+    repository: https://metallb.github.io/metallb

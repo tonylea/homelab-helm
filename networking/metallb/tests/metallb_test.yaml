@@ -1,0 +1,107 @@
+suite: metallb
+release:
+  name: networking-metallb-k3s
+  namespace: metallb-system
+tests:
+  - it: runs no FRR backend
+    templates:
+      - charts/metallb/templates/speaker.yaml
+    asserts:
+      - lengthEqual:
+          path: spec.template.spec.containers
+          count: 1
+        documentSelector:
+          path: kind
+          value: DaemonSet
+      - equal:
+          path: spec.template.spec.containers[0].name
+          value: speaker
+        documentSelector:
+          path: kind
+          value: DaemonSet
+
+  - it: names resources metallb whatever the release is called
+    templates:
+      - charts/metallb/templates/controller.yaml
+      - charts/metallb/templates/speaker.yaml
+    asserts:
+      - equal:
+          path: metadata.name
+          value: metallb-controller
+        template: charts/metallb/templates/controller.yaml
+        documentSelector:
+          path: kind
+          value: Deployment
+      - equal:
+          path: metadata.name
+          value: metallb-speaker
+        template: charts/metallb/templates/speaker.yaml
+        documentSelector:
+          path: kind
+          value: DaemonSet
+
+  - it: sets controller requests and limits
+    template: charts/metallb/templates/controller.yaml
+    documentSelector:
+      path: kind
+      value: Deployment
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].resources
+          value:
+            requests:
+              cpu: 10m
+              memory: 64Mi
+            limits:
+              cpu: 100m
+              memory: 128Mi
+
+  - it: sets speaker requests and limits
+    template: charts/metallb/templates/speaker.yaml
+    documentSelector:
+      path: kind
+      value: DaemonSet
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].resources
+          value:
+            requests:
+              cpu: 10m
+              memory: 64Mi
+            limits:
+              cpu: 100m
+              memory: 128Mi
+
+  - it: leaves out ServiceMonitors by default
+    template: charts/metallb/templates/servicemonitor.yaml
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: adds ServiceMonitors on k3s without granting the scraper extra RBAC
+    template: charts/metallb/templates/servicemonitor.yaml
+    values:
+      - ../values-k3s.yaml
+    asserts:
+      - containsDocument:
+          kind: ServiceMonitor
+          apiVersion: monitoring.coreos.com/v1
+          name: metallb-speaker-monitor
+          any: true
+      - containsDocument:
+          kind: ServiceMonitor
+          apiVersion: monitoring.coreos.com/v1
+          name: metallb-controller-monitor
+          any: true
+      - containsDocument:
+          kind: Role
+          apiVersion: rbac.authorization.k8s.io/v1
+          name: metallb-prometheus
+          any: true
+        not: true
+      - containsDocument:
+          kind: RoleBinding
+          apiVersion: rbac.authorization.k8s.io/v1
+          name: metallb-prometheus
+          any: true
+        not: true
