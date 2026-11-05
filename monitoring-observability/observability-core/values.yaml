@@ -120,11 +120,25 @@ kube-prometheus-stack:
             cpu: 100m
             memory: 64Mi
 
-  # Per-cluster and per-node exporters belong to the agent chart, which runs on
-  # every cluster that sends data here.
+  # Per-cluster collection belongs to observability-agent, which runs on every
+  # cluster that sends data here: no exporters, and no scraping of the kubelet,
+  # cAdvisor, API server, CoreDNS or other control-plane components. Their alert
+  # rules and dashboards stay, fed by the agent's data.
   kubeStateMetrics:
     enabled: false
   nodeExporter:
+    enabled: false
+  kubernetesServiceMonitors:
+    enabled: false
+  # The agent doesn't scrape these. Left on, their rules raise "target down"
+  # alerts for targets nothing collects.
+  kubeEtcd:
+    enabled: false
+  kubeScheduler:
+    enabled: false
+  kubeControllerManager:
+    enabled: false
+  kubeProxy:
     enabled: false
 
   grafana:
