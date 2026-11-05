@@ -153,13 +153,19 @@ OpenTelemetry's agent-and-gateway pattern: clusters run observability-agent, and
 sources go through the gateway. It runs on k3s and sends to observability-core over the
 same ingest hosts as the k3s agent.
 
-| Input | How sources reach it | Configured by |
+Sources reach it directly on a pinned MetalLB IP, with no ingress in between, so it
+depends only on DNS, MetalLB and its own pod. Every input is a port on one
+LoadBalancer Service, `alloy-gateway-lb`, with `externalTrafficPolicy: Local` so the
+gateway sees senders' real IPs.
+
+| Input | Port | Configured by |
 | --- | --- | --- |
-| Loki push (`/loki/api/v1/push`) | Ingress | Always on |
-| Prometheus remote write (`/api/v1/metrics/write`) | Ingress | Always on |
-| OTLP over HTTP (`/v1/traces`, `/v1/metrics`, `/v1/logs`) | Ingress | Always on |
-| Syslog | `alloy-gateway-syslog`, a MetalLB LoadBalancer Service with `externalTrafficPolicy: Local` so senders' IPs are kept | `syslog.listeners` |
-| Scrapes | The gateway pulls from each target | `scrape.targets` |
+| Loki push (`/loki/api/v1/push`) | 3100/TCP | Always on |
+| Prometheus remote write (`/api/v1/metrics/write`) | 9090/TCP | Always on |
+| OTLP gRPC | 4317/TCP | Always on |
+| OTLP HTTP (`/v1/traces`, `/v1/metrics`, `/v1/logs`) | 4318/TCP | Always on |
+| Syslog | Each listener's port | `syslog.listeners` |
+| Scrapes | None: the gateway pulls from each target | `scrape.targets` |
 
 Nothing the gateway sends has a `cluster` label. Sources are told apart by name, never
 by IP:
@@ -177,9 +183,9 @@ by IP:
 | Value | Meaning |
 | --- | --- |
 | `endpoints.*` | observability-core base URLs, as for observability-agent. |
-| `ingress.enabled`, `className`, `host`, `annotations` | Ingress for the HTTP inputs. |
-| `syslog.listeners` | One entry per port and format: `name`, `port`, `protocol` (`udp`/`tcp`), `format` (`rfc5424`, `rfc3164` or `raw`) and `job`. Alloy listens on `port` + 10000 in the pod, so ports below 1024 need no privileges. |
-| `syslog.service.loadBalancerIP` | Fixed IP for the syslog Service, set as MetalLB's `metallb.io/loadBalancerIPs` annotation. Empty lets MetalLB pick. |
+| `service.loadBalancerIP` | Fixed IP for `alloy-gateway-lb`, set as MetalLB's `metallb.io/loadBalancerIPs` annotation so it never moves. Must be in a MetalLB pool. Empty lets MetalLB pick. |
+| `service.annotations` | Extra annotations on `alloy-gateway-lb`. |
+| `syslog.listeners` | One entry per port and format: `name`, `port`, `protocol` (`udp`/`tcp`), `format` (`rfc5424`, `rfc3164` or `raw`) and `job`. Alloy listens on `port` + 10000 in the pod, so ports below 1024 need no privileges. Names and TCP ports can't clash with the push inputs. |
 | `scrape.targets` | One entry per job: `job`, `addresses` (`host:port`, by DNS name), optional `metricsPath`, `scheme` and `bearerTokenSecret` (`name` and `key` of a Secret in the release namespace). |
 | `scrape.interval` | How often targets are scraped. Default `30s`. |
 
@@ -190,7 +196,7 @@ scrape credentials.
 
 | File | Overrides |
 | --- | --- |
-| `values-k3s.yaml` | Sends to observability-core's ingest hosts under `internal.deadrobot.co.uk` over HTTP. Ingress on `gateway.internal.deadrobot.co.uk` through k3s's Traefik (`platform-traefik`). ServiceMonitor on, so the k3s agent scrapes the gateway. No listeners or scrape targets yet: each source adds its own. |
+| `values-k3s.yaml` | Sends to observability-core's ingest hosts under `internal.deadrobot.co.uk` over HTTP. `alloy-gateway-lb` pinned to `192.168.30.51` (`gateway.internal.deadrobot.co.uk`). ServiceMonitor on, so the k3s agent scrapes the gateway. No listeners or scrape targets yet: each source adds its own. |
 
 ## Tests
 
@@ -199,7 +205,7 @@ scrape credentials.
 | Unit tests | `observability-core/tests/*_test.yaml` | Datasource provisioning and linking; the ExternalSecret's name, keys and store; the Tempo OTLP ingress |
 | Unit tests | `observability-agent/tests/*_test.yaml` | Generated Alloy configs: endpoints, cluster label, job labels, node filtering, toggles, required values |
 | Alloy validation | `observability-agent/tests/validate-alloy-config.sh` | Runs `alloy validate` (same Alloy version as the subcharts, via Docker) on every collector's config rendered from each values file |
-| Unit tests | `observability-gateway/tests/*_test.yaml` | Gateway config: endpoints, no cluster label, input ports, syslog listeners and host labelling, scrape targets and credentials; the syslog Service and the ingress |
+| Unit tests | `observability-gateway/tests/*_test.yaml` | Gateway config: endpoints, no cluster label, input ports, syslog listeners and host labelling, scrape targets and credentials; the LoadBalancer Service, its pinned IP and port clashes |
 | Alloy validation | `observability-gateway/tests/validate-alloy-config.sh` | Runs `alloy validate` on the gateway config rendered from each values file |
 | End-to-end tests | `tests/end-to-end-tests.sh` | Installs both charts with their `ci/` values, sends a trace, a metric and a log through the agent over OTLP, and checks they arrive in Tempo, Prometheus and Loki. Also checks pod logs and events reach Loki; kubelet, cAdvisor, API server, CoreDNS, node-exporter and kube-state-metrics metrics and Tempo span metrics reach Prometheus; and Grafana has all three datasources. |
 

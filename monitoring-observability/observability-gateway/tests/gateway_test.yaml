@@ -83,10 +83,10 @@ tests:
           path: data["config.alloy"]
           pattern: 'stage.label_drop \{\s+values = \["source_ip", "level", "facility", "app_name"\]'
 
-  - it: leaves out syslog and its Service without listeners
+  - it: leaves out syslog without listeners, keeping the push inputs on the Service
     templates:
       - templates/alloy-gateway-config.yaml
-      - templates/syslog-service.yaml
+      - templates/service.yaml
     set:
       syslog.listeners: []
     asserts:
@@ -94,13 +94,17 @@ tests:
           path: data["config.alloy"]
           pattern: loki.source.syslog
         template: templates/alloy-gateway-config.yaml
-      - hasDocuments:
-          count: 0
-        template: templates/syslog-service.yaml
+      - lengthEqual:
+          path: spec.ports
+          count: 4
+        template: templates/service.yaml
 
-  - it: exposes syslog on a LoadBalancer that keeps senders' IPs
-    template: templates/syslog-service.yaml
+  - it: puts every input on one LoadBalancer that keeps senders' IPs
+    template: templates/service.yaml
     asserts:
+      - equal:
+          path: metadata.name
+          value: alloy-gateway-lb
       - equal:
           path: spec.type
           value: LoadBalancer
@@ -118,18 +122,86 @@ tests:
       - contains:
           path: spec.ports
           content:
+            name: loki-push
+            port: 3100
+            targetPort: 3100
+            protocol: TCP
+      - contains:
+          path: spec.ports
+          content:
+            name: metrics-write
+            port: 9090
+            targetPort: 9090
+            protocol: TCP
+      - contains:
+          path: spec.ports
+          content:
+            name: otlp-http
+            port: 4318
+            targetPort: 4318
+            protocol: TCP
+      - contains:
+          path: spec.ports
+          content:
             name: bsd-udp
             port: 514
             targetPort: 10514
             protocol: UDP
+      - lengthEqual:
+          path: spec.ports
+          count: 7
 
   - it: leaves the IP to MetalLB when none is set
-    template: templates/syslog-service.yaml
+    template: templates/service.yaml
     set:
-      syslog.service.loadBalancerIP: ""
+      service.loadBalancerIP: ""
     asserts:
       - notExists:
           path: metadata.annotations
+
+  - it: fails when a listener takes a push input's name
+    template: templates/service.yaml
+    set:
+      syslog.listeners:
+        - name: otlp-http
+          port: 5514
+          protocol: udp
+          format: raw
+          job: syslog/clash
+    asserts:
+      - failedTemplate:
+          errorPattern: name "otlp-http" is taken by a push input
+
+  - it: fails when a TCP listener takes a push input's port
+    template: templates/service.yaml
+    set:
+      syslog.listeners:
+        - name: clash
+          port: 4318
+          protocol: tcp
+          format: rfc5424
+          job: syslog/clash
+    asserts:
+      - failedTemplate:
+          errorPattern: TCP port 4318 is taken by otlp-http
+
+  - it: allows a UDP listener on a push input's port number
+    template: templates/service.yaml
+    set:
+      syslog.listeners:
+        - name: udp-ok
+          port: 4318
+          protocol: udp
+          format: raw
+          job: syslog/ok
+    asserts:
+      - contains:
+          path: spec.ports
+          content:
+            name: udp-ok
+            port: 4318
+            targetPort: 14318
+            protocol: UDP
 
   - it: scrapes each job's targets by name, with a token from a Secret when given
     template: templates/alloy-gateway-config.yaml
@@ -143,31 +215,3 @@ tests:
       - matchRegex:
           path: data["config.alloy"]
           pattern: 'credentials = remote.kubernetes.secret.ci_secured.data\["token"\]'
-
-  - it: routes the push paths through the ingress
-    template: templates/ingress.yaml
-    asserts:
-      - equal:
-          path: spec.rules[0].host
-          value: gateway.ci.example
-      - contains:
-          path: spec.rules[0].http.paths
-          content:
-            path: /api/v1/metrics/write
-            pathType: Exact
-            backend:
-              service:
-                name: alloy-gateway
-                port:
-                  number: 9090
-      - lengthEqual:
-          path: spec.rules[0].http.paths
-          count: 5
-
-  - it: has no ingress unless enabled
-    template: templates/ingress.yaml
-    set:
-      ingress.enabled: false
-    asserts:
-      - hasDocuments:
-          count: 0

@@ -8,11 +8,9 @@ endpoints:
   prometheus: http://prometheus.internal.deadrobot.co.uk
   tempoOtlpHttp: http://tempo.internal.deadrobot.co.uk
 
-# Through k3s's Traefik. Its web entrypoint redirects to HTTPS.
-ingress:
-  enabled: true
-  className: platform-traefik
-  host: gateway.internal.deadrobot.co.uk
+# DNS: gateway.internal.deadrobot.co.uk. The IP must be in the MetalLB pool.
+service:
+  loadBalancerIP: 192.168.30.51
 
 alloy-gateway:
   # Scraped by the k3s agent's alloy-metrics.

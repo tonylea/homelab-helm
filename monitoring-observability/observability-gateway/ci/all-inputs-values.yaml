@@ -1,18 +1,14 @@
-# Every input on (syslog in each format, a scrape target with a token, the ingress), so
+# Every input on (syslog in each format, a scrape target with a token), so
 # lint, manifest validation and config validation cover them before real sources use them.
 endpoints:
   loki: http://loki.observability.svc:3100
   prometheus: http://prometheus-stack-prometheus.observability.svc:9090
   tempoOtlpHttp: http://tempo.observability.svc:4318
 
-ingress:
-  enabled: true
-  className: ci
-  host: gateway.ci.example
+service:
+  loadBalancerIP: 192.0.2.10
 
 syslog:
-  service:
-    loadBalancerIP: 192.0.2.10
   listeners:
     - name: bsd-udp
       port: 514

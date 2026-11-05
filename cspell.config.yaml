@@ -42,6 +42,5 @@ words:
   - statefulset
   - subchart
   - systemd
-  - traefik
   - urlencode
   - varlog

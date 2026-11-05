@@ -24,18 +24,13 @@
         }
       }
     },
-    "ingress": {
+    "service": {
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "enabled": {
-          "type": "boolean"
-        },
-        "className": {
-          "type": "string"
-        },
-        "host": {
-          "type": "string"
+        "loadBalancerIP": {
+          "type": "string",
+          "pattern": "^([0-9]{1,3}(\\.[0-9]{1,3}){3})?$"
         },
         "annotations": {
           "type": "object",
@@ -49,28 +44,18 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "service": {
-          "type": "object",
-          "additionalProperties": false,
-          "properties": {
-            "loadBalancerIP": {
-              "type": "string",
-              "pattern": "^([0-9]{1,3}(\\.[0-9]{1,3}){3})?$"
-            },
-            "annotations": {
-              "type": "object",
-              "additionalProperties": {
-                "type": "string"
-              }
-            }
-          }
-        },
         "listeners": {
           "type": "array",
           "items": {
             "type": "object",
             "additionalProperties": false,
-            "required": ["name", "port", "protocol", "format", "job"],
+            "required": [
+              "name",
+              "port",
+              "protocol",
+              "format",
+              "job"
+            ],
             "properties": {
               "name": {
                 "type": "string",
@@ -82,10 +67,17 @@
                 "maximum": 55535
               },
               "protocol": {
-                "enum": ["udp", "tcp"]
+                "enum": [
+                  "udp",
+                  "tcp"
+                ]
               },
               "format": {
-                "enum": ["rfc5424", "rfc3164", "raw"]
+                "enum": [
+                  "rfc5424",
+                  "rfc3164",
+                  "raw"
+                ]
               },
               "job": {
                 "type": "string",
@@ -109,7 +101,10 @@
           "items": {
             "type": "object",
             "additionalProperties": false,
-            "required": ["job", "addresses"],
+            "required": [
+              "job",
+              "addresses"
+            ],
             "properties": {
               "job": {
                 "type": "string",
@@ -128,12 +123,18 @@
                 "pattern": "^/"
               },
               "scheme": {
-                "enum": ["http", "https"]
+                "enum": [
+                  "http",
+                  "https"
+                ]
               },
               "bearerTokenSecret": {
                 "type": "object",
                 "additionalProperties": false,
-                "required": ["name", "key"],
+                "required": [
+                  "name",
+                  "key"
+                ],
                 "properties": {
                   "name": {
                     "type": "string",

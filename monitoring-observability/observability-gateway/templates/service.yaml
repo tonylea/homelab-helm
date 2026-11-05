@@ -1,0 +1,49 @@
+{{- $fixed := list
+  (dict "name" "loki-push" "port" 3100)
+  (dict "name" "metrics-write" "port" 9090)
+  (dict "name" "otlp-grpc" "port" 4317)
+  (dict "name" "otlp-http" "port" 4318) }}
+{{- range .Values.syslog.listeners }}
+{{- $l := . }}
+{{- range $fixed }}
+{{- if eq $l.name .name }}
+{{- fail (printf "syslog listener name %q is taken by a push input" $l.name) }}
+{{- end }}
+{{- if and (eq $l.protocol "tcp") (eq (int $l.port) .port) }}
+{{- fail (printf "syslog listener %q: TCP port %d is taken by %s" $l.name (int $l.port) .name) }}
+{{- end }}
+{{- end }}
+{{- end }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: alloy-gateway-lb
+  labels:
+    {{- include "observability-gateway.labels" . | nindent 4 }}
+  {{- $annotations := .Values.service.annotations | default dict }}
+  {{- with .Values.service.loadBalancerIP }}
+  {{- $annotations = merge (dict "metallb.io/loadBalancerIPs" .) $annotations }}
+  {{- end }}
+  {{- with $annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  type: LoadBalancer
+  # Keeps senders' source IPs.
+  externalTrafficPolicy: Local
+  selector:
+    {{- include "observability-gateway.alloySelector" . | nindent 4 }}
+  ports:
+    {{- range $fixed }}
+    - name: {{ .name }}
+      port: {{ .port }}
+      targetPort: {{ .port }}
+      protocol: TCP
+    {{- end }}
+    {{- range .Values.syslog.listeners }}
+    - name: {{ .name }}
+      port: {{ .port }}
+      targetPort: {{ include "observability-gateway.syslogContainerPort" . }}
+      protocol: {{ upper .protocol }}
+    {{- end }}

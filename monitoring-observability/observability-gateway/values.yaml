@@ -19,28 +19,26 @@ endpoints:
   tempoOtlpGrpc: ""
   tempoOtlpHttp: ""
 
-# Ingress for the HTTP inputs that agents push to:
-#   /loki/api/v1/push                Loki push
-#   /api/v1/metrics/write            Prometheus remote write
-#   /v1/traces, /v1/metrics, /v1/logs  OTLP over HTTP
-ingress:
-  enabled: false
-  className: ""
-  host: ""
+# Every input is on one LoadBalancer Service (alloy-gateway-lb), straight on a MetalLB
+# IP with no ingress in between:
+#   3100  TCP  Loki push                /loki/api/v1/push
+#   9090  TCP  Prometheus remote write  /api/v1/metrics/write
+#   4317  TCP  OTLP gRPC
+#   4318  TCP  OTLP HTTP                /v1/traces, /v1/metrics, /v1/logs
+#   plus each syslog listener's port
+# externalTrafficPolicy is Local, so the gateway sees each sender's real IP (used for
+# reverse DNS when a syslog message has no hostname).
+service:
+  # Fixed IP from a MetalLB pool, so it never moves. Empty lets MetalLB pick one.
+  loadBalancerIP: ""
   annotations: {}
 
 syslog:
-  # LoadBalancer Service carrying the listeners' ports, created when there are
-  # listeners. externalTrafficPolicy is Local, so the gateway sees each sender's real
-  # IP (used for reverse DNS when a message has no hostname).
-  service:
-    # Fixed IP from a MetalLB pool. Empty lets MetalLB pick one.
-    loadBalancerIP: ""
-    annotations: {}
   # One entry per port and format; a port takes one syslog format. Alloy listens on
   # port + 10000 inside the pod, so ports below 1024 (e.g. 514) need no privileges.
-  #   name      Service port name: lowercase letters, digits and '-', up to 15 characters
-  #   port      Port devices send to
+  #   name      Service port name: lowercase letters, digits and '-', up to 15
+  #             characters; not one of the fixed port names above
+  #   port      Port devices send to; not 3100, 9090, 4317 or 4318 over TCP
   #   protocol  udp or tcp
   #   format    rfc5424, rfc3164 or raw (no parsing, for formats that aren't RFC syslog)
   #   job       job label on the logs, e.g. syslog/router
@@ -73,8 +71,8 @@ alloy-gateway:
       # Must match the ConfigMap name in templates/alloy-gateway-config.yaml.
       name: alloy-gateway-config
       key: config.alloy
-    # HTTP inputs, on the ClusterIP Service the ingress points at. Syslog ports are on
-    # their own Service (templates/syslog-service.yaml).
+    # Pod ports for the push inputs. They're exposed on alloy-gateway-lb
+    # (templates/service.yaml).
     extraPorts:
       - name: otlp-grpc
         port: 4317

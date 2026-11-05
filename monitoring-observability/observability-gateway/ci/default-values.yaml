@@ -1,5 +1,5 @@
 # Values for CI: points at observability-core installed into the `observability`
-# namespace. No listeners, scrape targets or ingress.
+# namespace. No syslog listeners or scrape targets.
 endpoints:
   loki: http://loki.observability.svc:3100
   prometheus: http://prometheus-stack-prometheus.observability.svc:9090
