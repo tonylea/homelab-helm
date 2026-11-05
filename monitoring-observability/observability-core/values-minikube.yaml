@@ -14,6 +14,14 @@ kube-prometheus-stack:
         volumeClaimTemplate:
           spec:
             storageClassName: observability-ssd
+      # Label what this Prometheus scrapes itself (the core's own components) with
+      # the cluster name, matching what observability-agent adds to its data.
+      scrapeClasses:
+        - name: cluster-label
+          default: true
+          relabelings:
+            - targetLabel: cluster
+              replacement: minikube
     ingress:
       enabled: true
       ingressClassName: nginx

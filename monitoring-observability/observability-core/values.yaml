@@ -92,6 +92,10 @@ kube-prometheus-stack:
           memory: 512Mi
 
   prometheusOperator:
+    # The operator's kube-system Service for scraping kubelets. Unused: the agent
+    # scrapes kubelets itself.
+    kubeletService:
+      enabled: false
     # Chart's example.
     resources:
       requests:
