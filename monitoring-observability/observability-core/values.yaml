@@ -160,14 +160,15 @@ kube-prometheus-stack:
     testFramework:
       enabled: false
     sidecar:
-      # Applies to both the dashboards and datasources sidecars. Our own.
+      # Applies to both the dashboards and datasources sidecars. CPU is our own;
+      # memory is from measured use of this k8s-sidecar image (~90Mi, ~107Mi peak).
       resources:
         requests:
           cpu: 10m
-          memory: 64Mi
+          memory: 96Mi
         limits:
           cpu: 100m
-          memory: 128Mi
+          memory: 192Mi
       datasources:
         enabled: true
       dashboards:
@@ -212,15 +213,16 @@ loki:
       limits:
         cpu: "2"
         memory: 4Gi
-  # Rules sidecar. Our own.
+  # Rules sidecar, same k8s-sidecar image as Grafana's. CPU is our own; memory
+  # is from measured use of that image (~90Mi, ~107Mi peak).
   sidecar:
     resources:
       requests:
         cpu: 10m
-        memory: 32Mi
+        memory: 96Mi
       limits:
         cpu: 50m
-        memory: 64Mi
+        memory: 192Mi
   # The chart's simple-scalable targets default to non-zero replicas.
   read:
     replicas: 0
