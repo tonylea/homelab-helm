@@ -13,7 +13,6 @@ words:
   - argoproj
   - bsd
   - cadvisor
-  - cef
   - clustersecretstore
   - containeroo
   - coredns
@@ -24,7 +23,6 @@ words:
   - endgroup
   - eventhandler
   - externalsecret
-  - homeassistant
   - homelab
   - ietf
   - kubeconform

@@ -23,7 +23,7 @@ app.kubernetes.io/instance: {{ .Release.Name }}
 {{- add 10000 .port -}}
 {{- end }}
 
-{{/* Alloy component label for a scrape job, e.g. homeassistant -> homeassistant. */}}
+{{/* Alloy component label for a scrape job, e.g. my-app -> my_app. */}}
 {{- define "observability-gateway.componentId" -}}
 {{- regexReplaceAll "[^a-zA-Z0-9_]" . "_" -}}
 {{- end }}

@@ -1,5 +1,5 @@
 # One gateway for the whole homelab, for sources that aren't Kubernetes clusters
-# (network devices, servers, Home Assistant, ...). Clusters use observability-agent.
+# (network devices, servers and other hosts). Clusters use observability-agent.
 # A single Alloy instance:
 #   - receives pushes from agents on servers: Loki push, Prometheus remote write, OTLP
 #   - receives syslog from devices on the listeners below
@@ -42,15 +42,15 @@ syslog:
   #   name      Service port name: lowercase letters, digits and '-', up to 15 characters
   #   port      Port devices send to
   #   protocol  udp or tcp
-  #   format    rfc5424, rfc3164 or raw (no parsing, e.g. for CEF)
-  #   job       job label on the logs, e.g. syslog/unifi
+  #   format    rfc5424, rfc3164 or raw (no parsing, for formats that aren't RFC syslog)
+  #   job       job label on the logs, e.g. syslog/router
   listeners: []
 
 scrape:
   # Matches kube-prometheus-stack's default.
   interval: 30s
   # One entry per job:
-  #   job                Job label, e.g. homeassistant
+  #   job                Job label, e.g. my-app
   #   addresses          host:port of each target, by DNS name; becomes `instance`
   #   metricsPath        Default /metrics
   #   scheme             http (default) or https

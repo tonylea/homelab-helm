@@ -148,7 +148,7 @@ An endpoint is only required when a `collect` option that uses it is on.
 ## observability-gateway
 
 One Grafana Alloy instance (`alloy-gateway`, one replica) for everything that isn't a
-Kubernetes cluster: network devices, servers, Home Assistant and the like. It follows
+Kubernetes cluster: network devices, servers and other hosts. It follows
 OpenTelemetry's agent-and-gateway pattern: clusters run observability-agent, and other
 sources go through the gateway. It runs on k3s and sends to observability-core over the
 same ingest hosts as the k3s agent.
@@ -164,7 +164,7 @@ same ingest hosts as the k3s agent.
 Nothing the gateway sends has a `cluster` label. Sources are told apart by name, never
 by IP:
 
-- **Syslog:** `job` comes from the listener (e.g. `syslog/unifi`). `host` is the
+- **Syslog:** `job` comes from the listener (e.g. `syslog/router`). `host` is the
   hostname in the message; if there is none, the sender's reverse-DNS name; failing
   that, its IP. The sender's IP, severity (`level`), facility and app name are stored
   as structured metadata, so each line can be filtered on them without them becoming

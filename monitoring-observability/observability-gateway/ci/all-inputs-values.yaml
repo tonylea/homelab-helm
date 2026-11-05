@@ -38,8 +38,8 @@ scrape:
         - app-2.ci.example:8080
     - job: ci-secured
       addresses:
-        - secured.ci.example:8123
-      metricsPath: /api/prometheus
+        - secured.ci.example:9443
+      metricsPath: /custom/metrics
       scheme: https
       bearerTokenSecret:
         name: ci-token
