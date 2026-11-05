@@ -7,13 +7,11 @@ grafanaAdmin:
 
 # Web UIs and the ingest endpoints for other clusters go through minikube's ingress-nginx
 # addon on ports 80/443. Each host needs a DNS record pointing at the Mac running
-# minikube. Ingest hosts raise ingress-nginx's 1m default request size (our own choice
-# of 16m) so agents' batches aren't rejected.
+# minikube. Ingest hosts keep ingress-nginx's 1m default request size: agents' log and
+# metric batches fit; raise it only if measured batch sizes or 413 errors show a need.
 tempoOtlpIngress:
   enabled: true
   host: tempo.internal.deadrobot.co.uk
-  annotations:
-    nginx.ingress.kubernetes.io/proxy-body-size: 16m
 
 kube-prometheus-stack:
   prometheus:
@@ -37,8 +35,6 @@ kube-prometheus-stack:
     ingress:
       enabled: true
       ingressClassName: nginx
-      annotations:
-        nginx.ingress.kubernetes.io/proxy-body-size: 16m
       hosts: [prometheus.internal.deadrobot.co.uk]
       paths: [/]
       pathType: Prefix
@@ -72,8 +68,6 @@ loki:
   ingress:
     enabled: true
     ingressClassName: nginx
-    annotations:
-      nginx.ingress.kubernetes.io/proxy-body-size: 16m
     hosts: [loki.internal.deadrobot.co.uk]
     paths:
       distributor:
