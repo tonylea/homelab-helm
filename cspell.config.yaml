@@ -11,6 +11,7 @@ words:
   - apiserver
   - argocd
   - argoproj
+  - bdkj
   - bsd
   - cadvisor
   - clustersecretstore
@@ -45,5 +46,8 @@ words:
   - statefulset
   - subchart
   - systemd
+  - toml
+  - unifi
+  - unpoller
   - urlencode
   - varlog

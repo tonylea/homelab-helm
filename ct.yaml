@@ -21,3 +21,4 @@ chart-repos:
   - containeroo=https://charts.containeroo.ch
   - external-secrets=https://charts.external-secrets.io
   - metallb=https://metallb.github.io/metallb
+  - unpoller=https://unpoller.github.io/helm-chart

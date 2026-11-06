@@ -12,6 +12,16 @@ endpoints:
 service:
   loadBalancerIP: 192.168.30.51
 
+syslog:
+  listeners:
+    # UniFi SIEM / Activity Logging from the UCG Max. raw: UniFi's CEF-style messages
+    # may not parse as RFC 3164 or 5424, and raw keeps every line.
+    - name: unifi
+      port: 514
+      protocol: udp
+      format: raw
+      job: syslog/unifi
+
 alloy-gateway:
   # Scraped by the k3s agent's alloy-metrics.
   serviceMonitor:

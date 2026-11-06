@@ -1,0 +1,116 @@
+suite: unpoller
+values:
+  - ../ci/default-values.yaml
+release:
+  name: unpoller-minikube
+  namespace: observability
+tests:
+  - it: renders each setting into up.conf
+    template: templates/config-secret.yaml
+    values:
+      - ../values-minikube.yaml
+    asserts:
+      - matchRegex:
+          path: stringData["up.conf"]
+          pattern: 'url = "https://192\.168\.1\.1"'
+      - matchRegex:
+          path: stringData["up.conf"]
+          pattern: 'sites = \["all"\]'
+      - matchRegex:
+          path: stringData["up.conf"]
+          pattern: 'verify_ssl = false'
+      - matchRegex:
+          path: stringData["up.conf"]
+          pattern: 'save_dpi = false'
+
+  - it: keeps the login out of up.conf
+    template: templates/config-secret.yaml
+    asserts:
+      - notMatchRegex:
+          path: stringData["up.conf"]
+          pattern: '(?m)^\s*(user|pass|api_key)\s*='
+
+  - it: fails without a console URL
+    template: templates/config-secret.yaml
+    set:
+      unifi.url: ""
+    asserts:
+      - failedTemplate:
+          errorPattern: unifi.url is required
+
+  - it: mounts this chart's up.conf and reads the login from the Secret the ExternalSecret creates
+    templates:
+      - charts/unpoller/templates/deployment.yaml
+      - templates/config-secret.yaml
+      - templates/unifi-externalsecret.yaml
+    values:
+      - ../values-minikube.yaml
+    asserts:
+      - equal:
+          path: spec.template.spec.volumes[0].secret.secretName
+          value: unpoller-config
+        template: charts/unpoller/templates/deployment.yaml
+      - equal:
+          path: metadata.name
+          value: unpoller-config
+        template: templates/config-secret.yaml
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: UP_UNIFI_DEFAULT_USER
+            valueFrom:
+              secretKeyRef:
+                name: unpoller-unifi
+                key: username
+        template: charts/unpoller/templates/deployment.yaml
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: UP_UNIFI_DEFAULT_PASS
+            valueFrom:
+              secretKeyRef:
+                name: unpoller-unifi
+                key: password
+        template: charts/unpoller/templates/deployment.yaml
+      - equal:
+          path: spec.target.name
+          value: unpoller-unifi
+        template: templates/unifi-externalsecret.yaml
+      - equal:
+          path: spec.data[0].secretKey
+          value: username
+        template: templates/unifi-externalsecret.yaml
+      - equal:
+          path: spec.data[1].secretKey
+          value: password
+        template: templates/unifi-externalsecret.yaml
+
+  - it: leaves out the chart's own config Secret
+    template: charts/unpoller/templates/unpoller-config-secret.yaml
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: creates no grafana-operator resources
+    templates:
+      - charts/unpoller/templates/grafana.yaml
+      - charts/unpoller/templates/grafana-secret.yaml
+      - charts/unpoller/templates/dashboards.yaml
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: leaves out the ExternalSecret by default
+    template: templates/unifi-externalsecret.yaml
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: ships every dashboard as a ConfigMap Grafana's sidecar loads
+    template: templates/dashboards.yaml
+    asserts:
+      - hasDocuments:
+          count: 5
+      - equal:
+          path: metadata.labels.grafana_dashboard
+          value: "1"

@@ -1,0 +1,17 @@
+{{- if .Values.dashboards.enabled }}
+{{- range $path, $_ := .Files.Glob "dashboards/*.json" }}
+{{- $name := base $path | trimSuffix ".json" }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: unpoller-dashboard-{{ $name }}
+  labels:
+    {{- include "unpoller.wrapperLabels" $ | nindent 4 }}
+    # Loaded by observability-core's Grafana dashboard sidecar.
+    grafana_dashboard: "1"
+data:
+  unpoller-{{ $name }}.json: |-
+    {{- $.Files.Get $path | nindent 4 }}
+{{- end }}
+{{- end }}

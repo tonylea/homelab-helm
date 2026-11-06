@@ -7,6 +7,7 @@ Metrics, logs and traces for the homelab, viewed in Grafana.
 | [`observability-core`](observability-core) | Stores and queries metrics (Prometheus), logs (Loki) and traces (Tempo); Grafana on top |
 | [`prometheus-operator-crds`](prometheus-operator-crds) | Prometheus Operator CRDs for clusters without observability-core, so the agent can scrape ServiceMonitors and PodMonitors there |
 | [`observability-agent`](observability-agent) | Runs on each cluster: collects its metrics, logs, events and app telemetry and sends them to observability-core (Grafana Alloy, node-exporter, kube-state-metrics) |
+| [`unpoller`](unpoller) | On minikube: polls the UniFi console's API and exports UniFi metrics to Prometheus, with Grafana dashboards |
 | [`observability-gateway`](observability-gateway) | One per homelab, on k3s: receives syslog, agent pushes and OTLP from sources outside Kubernetes, scrapes non-Kubernetes targets, and sends it all to observability-core (Grafana Alloy) |
 
 Upstream chart versions are pinned in each chart's `Chart.yaml`.
@@ -21,6 +22,9 @@ observability-agent (each cluster)            observability-core
 
 observability-gateway (k3s)
   alloy-gateway   syslog, agent pushes, OTLP, scrapes ──▶ Loki, Prometheus, Tempo
+
+unpoller (minikube)
+  unpoller        UniFi Network API (UCG Max) ─▶ scraped by Prometheus
 ```
 
 ## observability-core
@@ -196,7 +200,54 @@ scrape credentials.
 
 | File | Overrides |
 | --- | --- |
-| `values-k3s.yaml` | Sends to observability-core's ingest hosts under `internal.deadrobot.co.uk` over HTTP. `alloy-gateway-lb` pinned to `192.168.30.51` (`gateway.internal.deadrobot.co.uk`). ServiceMonitor on, so the k3s agent scrapes the gateway. No listeners or scrape targets yet: each source adds its own. |
+| `values-k3s.yaml` | Sends to observability-core's ingest hosts under `internal.deadrobot.co.uk` over HTTP. `alloy-gateway-lb` pinned to `192.168.30.51` (`gateway.internal.deadrobot.co.uk`). ServiceMonitor on, so the k3s agent scrapes the gateway. Syslog listener `unifi` on `514/udp` (format `raw`, job `syslog/unifi`) for the UCG Max. No scrape targets. |
+
+## unpoller
+
+Built from the [unpoller](https://unpoller.com) chart. One replica polls the UniFi
+console's API and serves UniFi metrics (devices, ports, access points, clients, WAN,
+sites) on port 9130, scraped by observability-core's Prometheus through a PodMonitor.
+
+It runs on minikube, next to observability-core: it pulls from the console, and k3s
+gets no network access to the console's API.
+
+It logs in as a local UniFi user with read-only rights to the Network app, as unpoller's
+docs recommend. The login never goes in `up.conf`: it comes from the Secret
+`unpoller-unifi` as `UP_UNIFI_DEFAULT_USER` and `UP_UNIFI_DEFAULT_PASS`, which override the
+file. With `externalSecret.enabled: true`, an ExternalSecret creates that Secret from
+1Password:
+
+- Store: ClusterSecretStore `onepassword`.
+- Source: item `unifi-unpoller-account`, fields `username` and `password`.
+
+| Value | Default | Meaning |
+| --- | --- | --- |
+| `unifi.url` | none, required | Console URL. No port for UniFi OS consoles. |
+| `unifi.sites` | `["all"]` | Sites to poll |
+| `unifi.verifySsl` | `false` | Off while the console uses its self-signed certificate |
+| `unifi.saveSites` | `true` | Site data, for the Network Sites dashboard |
+| `unifi.saveDpi` | `false` | Traffic per application. Adds many series. |
+| `unifi.saveIds` | `false` | Intrusion detection events |
+| `externalSecret.enabled` | `false` | Create `unpoller-unifi` from 1Password |
+| `dashboards.enabled` | `true` | Ship the dashboards below |
+
+The upstream chart can only install dashboards through grafana-operator, which isn't
+installed, so that's off. This chart ships the same dashboards instead, from
+[unpoller/dashboards](https://github.com/unpoller/dashboards) (MIT): Network Sites, USW
+(switches), UAP (access points), USG (gateways) and Client Insights. Each is a ConfigMap
+labelled `grafana_dashboard: "1"`, which Grafana's sidecar loads.
+
+`update-dashboards.sh` fetches them at a pinned commit and points every query at the
+`prometheus` datasource. Upstream uses an import input and, on some rows, a hard-coded
+datasource uid. To update, change the commit in the script, run it and review the diff.
+
+Requests and limits in `values.yaml` are provisional: not yet measured.
+
+### Cluster overrides
+
+| File | Overrides |
+| --- | --- |
+| `values-minikube.yaml` | Console `https://192.168.1.1` (UCG Max); the ExternalSecret on |
 
 ## Tests
 
@@ -207,6 +258,8 @@ scrape credentials.
 | Alloy validation | `observability-agent/tests/validate-alloy-config.sh` | Runs `alloy validate` (same Alloy version as the subcharts, via Docker) on every collector's config rendered from each values file |
 | Unit tests | `observability-gateway/tests/*_test.yaml` | Gateway config: endpoints, no cluster label, input ports, syslog listeners and host labelling, scrape targets and credentials; the LoadBalancer Service, its pinned IP and port clashes |
 | Alloy validation | `observability-gateway/tests/validate-alloy-config.sh` | Runs `alloy validate` on the gateway config rendered from each values file |
+| Unit tests | `unpoller/tests/*_test.yaml` | up.conf settings and required URL; no login in up.conf; the Deployment mounts this chart's up.conf and reads the login from the Secret the ExternalSecret creates; no chart config Secret or grafana-operator resources; dashboard ConfigMaps and their sidecar label |
+| Dashboard check | `unpoller/tests/check-dashboards.sh` | Every dashboard only queries the `prometheus` datasource |
 | End-to-end tests | `tests/end-to-end-tests.sh` | Installs both charts with their `ci/` values, sends a trace, a metric and a log through the agent over OTLP, and checks they arrive in Tempo, Prometheus and Loki. Also checks pod logs and events reach Loki; kubelet, cAdvisor, API server, CoreDNS, node-exporter and kube-state-metrics metrics and Tempo span metrics reach Prometheus; and Grafana has all three datasources. |
 
 `tests/end-to-end-tests.sh` installs releases named `observability-core` and `observability-agent` into the `observability`

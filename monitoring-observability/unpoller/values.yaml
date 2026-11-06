@@ -1,0 +1,85 @@
+# unpoller: polls the UniFi Network API and serves the results as Prometheus metrics on
+# port 9130, scraped through a PodMonitor. Logs in as a local read-only UniFi user.
+# Runs next to observability-core, whose Prometheus scrapes the PodMonitor and whose
+# Grafana loads the dashboards below.
+
+# Written to up.conf (the Secret unpoller-config). The login isn't in it: it comes from
+# the Secret unpoller-unifi as environment variables, which override up.conf.
+unifi:
+  # UniFi console. No port for UniFi OS consoles (UCG, UDM): they serve the API on 443.
+  # Required. Set per cluster.
+  url: ""
+  sites:
+    - all
+  # Off while the console uses its self-signed certificate.
+  verifySsl: false
+  # Site data, for the Network Sites dashboard.
+  saveSites: true
+  # Traffic per application. Adds many series.
+  saveDpi: false
+  # Intrusion detection events.
+  saveIds: false
+
+# Creates the Secret unpoller-unifi (keys username, password) from 1Password through
+# External Secrets Operator. Requires ESO and the referenced ClusterSecretStore.
+externalSecret:
+  enabled: false
+  refreshInterval: 1h
+  secretStoreRef:
+    kind: ClusterSecretStore
+    name: onepassword
+  # 1Password SDK provider format: <item>/<field>.
+  remoteRefs:
+    username:
+      key: unifi-unpoller-account/username
+    password:
+      key: unifi-unpoller-account/password
+
+# unpoller's Grafana dashboards (dashboards/*.json), as ConfigMaps Grafana's sidecar
+# loads from any namespace.
+dashboards:
+  enabled: true
+
+unpoller:
+  # Fixed names whatever the release is called.
+  fullnameOverride: unpoller
+
+  image:
+    tag: v5.9.4
+
+  # up.conf from this chart's Secret instead of the chart's own.
+  upConfigExistingSecret:
+    name: unpoller-config
+    key: up.conf
+
+  extraEnv:
+    - name: UP_UNIFI_DEFAULT_USER
+      valueFrom:
+        secretKeyRef:
+          name: unpoller-unifi
+          key: username
+    - name: UP_UNIFI_DEFAULT_PASS
+      valueFrom:
+        secretKeyRef:
+          name: unpoller-unifi
+          key: password
+
+  # Provisional, not measured: set from measured use once it runs.
+  resources:
+    requests:
+      cpu: 10m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 256Mi
+
+  podMonitor:
+    enabled: true
+
+  # Needs grafana-operator, which isn't installed. The same dashboards are shipped by
+  # this chart instead (dashboards above).
+  dashboards:
+    create: false
+    # Separate switch for the grafana-operator Grafana instance and its admin Secret.
+    grafana:
+      create: false

@@ -1,0 +1,10 @@
+apiVersion: v2
+name: monitoring-observability-unpoller
+description: unpoller, exporting UniFi metrics from the UniFi Network API to Prometheus, with its Grafana dashboards.
+type: application
+version: 0.1.0
+kubeVersion: ">=1.30.0-0"
+dependencies:
+  - name: unpoller
+    version: 2.4.0
+    repository: https://unpoller.github.io/helm-chart
